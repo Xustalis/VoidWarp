@@ -81,7 +81,7 @@ jobs:
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
-        targets: aarch64-linux-android
+        targets: aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android
         
     - name: Setup Android NDK
       uses: android-actions/setup-android@v3
@@ -91,7 +91,7 @@ jobs:
       
     - name: Build Rust Library for Android
       working-directory: core
-      run: cargo ndk -t arm64-v8a -o ../platforms/android/app/src/main/jniLibs build --release
+      run: cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 -o ../platforms/android/app/src/main/jniLibs build --release
       
     - name: Setup Java
       uses: actions/setup-java@v4
