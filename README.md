@@ -1,7 +1,7 @@
 # VoidWarp (虚空传送) 🌌
 
 [![CI](https://github.com/XenithCode/VoidWarp/actions/workflows/ci.yml/badge.svg)](https://github.com/XenithCode/VoidWarp/actions/workflows/ci.yml)
-[![License](https://img.shields.io/badge/License-Proprietary-red.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
 **VoidWarp** 是一个高性能、跨平台的局域网安全文件传输工具。它旨在提供比 AirDrop 更广泛的设备支持，同时保持极高的传输速度和安全性。
 
@@ -51,15 +51,16 @@ dotnet build -c Release
 
 ## 📜 许可证 (License)
 
-Copyright © 2024 XenithCode. All Rights Reserved.
+Copyright © 2024 XenithCode.
 
-本项目采用 **专有商业许可证 (Proprietary/Commercial License)**。
+本项目采用 **GNU General Public License v3.0 (GPLv3)** 许可证。
 
-*   ✅ **个人学习与研究**: 允许个人用户免费下载源码进行学习、调试和非商业用途的研究。
-*   ❌ **商业使用**: 未经作者明确书面授权，严禁将本项目源码或编译后的程序用于任何商业用途（包括但不限于公司内部使用、集成到商业产品、重新打包销售等）。
-*   ❌ **分发与修改**: 严禁在未获得授权的情况下公开发布修改后的版本。
+*   ✅ **自由使用**: 您可以自由下载、运行和使用本软件。
+*   ✅ **源码共享**: 您可以获取、学习并修改本项目源码。
+*   ⚠️ **分发要求**: 如果您分发本软件或其修改版本，必须以相同的许可证 (GPLv3) 公开您的源代码。
+*   ❌ **闭源商业**: 严禁将本项目源码集成到任何闭源商业软件中。
 
-我们致力于打造高质量的软件产品。如果您有商业合作意向，请联系作者。
+我们希望通过开源协作共同完善 VoidWarp。如果您有其他授权需求，请联系作者。
 
 ---
 
