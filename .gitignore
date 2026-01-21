@@ -17,3 +17,5 @@ Thumbs.db
 # Rust
 **/*.rs.bk
 Cargo.lock
+
+.cargo/config.toml
