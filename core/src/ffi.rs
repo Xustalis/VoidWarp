@@ -39,6 +39,14 @@ pub extern "C" fn voidwarp_init(device_name: *const c_char) -> *mut VoidWarpHand
     Box::into_raw(handle)
 }
 
+/// Generate a new 6-digit pairing code
+/// Caller must free the string
+#[no_mangle]
+pub extern "C" fn voidwarp_generate_pairing_code() -> *mut c_char {
+    let code = PairingCode::generate();
+    CString::new(code.to_string()).unwrap().into_raw()
+}
+
 /// Destroy the VoidWarp engine handle
 #[no_mangle]
 pub extern "C" fn voidwarp_destroy(handle: *mut VoidWarpHandle) {

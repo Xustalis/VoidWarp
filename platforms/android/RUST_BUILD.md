@@ -14,16 +14,13 @@ Create or update `~/.cargo/config.toml`:
 
 ```toml
 [target.aarch64-linux-android]
-ar = "F:/Android_SDk/ndk/29.0.14206865/toolchains/llvm/prebuilt/windows-x86_64/bin/llvm-ar.exe"
-linker = "F:/Android_SDk/ndk/29.0.14206865/toolchains/llvm/prebuilt/windows-x86_64/bin/aarch64-linux-android26-clang.cmd"
+linker = "C:/Users/YOUR_USER/AppData/Local/Android/Sdk/ndk/VERSION/toolchains/llvm/prebuilt/windows-x86_64/bin/aarch64-linux-android26-clang.cmd"
 
 [target.armv7-linux-androideabi]
-ar = "F:/Android_SDk/ndk/29.0.14206865/toolchains/llvm/prebuilt/windows-x86_64/bin/llvm-ar.exe"
-linker = "F:/Android_SDk/ndk/29.0.14206865/toolchains/llvm/prebuilt/windows-x86_64/bin/armv7a-linux-androideabi26-clang.cmd"
+linker = "C:/Users/YOUR_USER/AppData/Local/Android/Sdk/ndk/VERSION/toolchains/llvm/prebuilt/windows-x86_64/bin/armv7a-linux-androideabi26-clang.cmd"
 
 [target.x86_64-linux-android]
-ar = "F:/Android_SDk/ndk/29.0.14206865/toolchains/llvm/prebuilt/windows-x86_64/bin/llvm-ar.exe"
-linker = "F:/Android_SDk/ndk/29.0.14206865/toolchains/llvm/prebuilt/windows-x86_64/bin/x86_64-linux-android26-clang.cmd"
+linker = "C:/Users/YOUR_USER/AppData/Local/Android/Sdk/ndk/VERSION/toolchains/llvm/prebuilt/windows-x86_64/bin/x86_64-linux-android26-clang.cmd"
 ```
 
 ## Build Commands

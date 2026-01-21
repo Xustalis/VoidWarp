@@ -4,6 +4,9 @@
 
 pub mod discovery;
 pub mod ffi;
+
+#[cfg(target_os = "android")]
+mod android;
 pub mod security;
 pub mod transfer;
 pub mod transport;
