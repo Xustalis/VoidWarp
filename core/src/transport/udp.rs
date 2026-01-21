@@ -65,7 +65,7 @@ mod tests {
         client.send(msg, server_addr).await.expect("Send failed");
 
         let mut buf = [0u8; 1024];
-        let (len, addr) = server.recv(&mut buf).await.expect("Recv failed");
+        let (len, _addr) = server.recv(&mut buf).await.expect("Recv failed");
 
         assert_eq!(&buf[..len], msg);
         // On some platforms/loopback addr might vary slightly but usually it's correct.

@@ -36,6 +36,5 @@ mod tests {
     async fn test_async_init() {
         init();
         tracing::info!("Async test running");
-        assert!(true);
     }
 }

@@ -1,15 +1,16 @@
 #![cfg(target_os = "android")]
 #![allow(non_snake_case)]
 
-use jni::JNIEnv;
-use jni::objects::{JClass, JString, JObject, JValue};
-use jni::sys::{jlong, jint, jstring, jobjectArray, jboolean};
-use std::ffi::{CString, CStr};
 use crate::ffi;
+use jni::objects::{JClass, JObject, JString, JValue};
+use jni::sys::{jboolean, jint, jlong, jobjectArray, jstring};
+use jni::JNIEnv;
+use std::ffi::{CStr, CString};
 
 /// Convert JString to CString
 fn get_string(env: &mut JNIEnv, string: JString) -> CString {
-    let input: String = env.get_string(&string)
+    let input: String = env
+        .get_string(&string)
         .expect("Couldn't get java string!")
         .into();
     CString::new(input).unwrap_or_default()
@@ -99,13 +100,15 @@ pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpGetP
     handle: jlong,
 ) -> jobjectArray {
     let list = ffi::voidwarp_get_peers(handle as *const ffi::VoidWarpHandle);
-    
+
     // Create PeerInfo array
-    let peer_class = env.find_class("com/voidwarp/android/native/NativeLib$PeerInfo")
+    let peer_class = env
+        .find_class("com/voidwarp/android/native/NativeLib$PeerInfo")
         .expect("Could not find PeerInfo class");
-    
+
     let initial_element = JObject::null();
-    let output_array = env.new_object_array(list.count as i32, &peer_class, &initial_element)
+    let output_array = env
+        .new_object_array(list.count as i32, &peer_class, &initial_element)
         .expect("Could not create array");
 
     if list.count > 0 && !list.peers.is_null() {
@@ -114,23 +117,25 @@ pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpGetP
             let id = CStr::from_ptr(peer.device_id).to_string_lossy();
             let name = CStr::from_ptr(peer.device_name).to_string_lossy();
             let ip = CStr::from_ptr(peer.ip_address).to_string_lossy();
-            
+
             let j_id = env.new_string(&*id).unwrap();
             let j_name = env.new_string(&*name).unwrap();
             let j_ip = env.new_string(&*ip).unwrap();
-            
+
             // Constructor: (String, String, String, Int)
-            let obj = env.new_object(
-                &peer_class,
-                "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)V",
-                &[
-                    JValue::Object(&j_id),
-                    JValue::Object(&j_name),
-                    JValue::Object(&j_ip),
-                    JValue::Int(peer.port as i32)
-                ]
-            ).expect("Failed to create PeerInfo object");
-            
+            let obj = env
+                .new_object(
+                    &peer_class,
+                    "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)V",
+                    &[
+                        JValue::Object(&j_id),
+                        JValue::Object(&j_name),
+                        JValue::Object(&j_ip),
+                        JValue::Int(peer.port as i32),
+                    ],
+                )
+                .expect("Failed to create PeerInfo object");
+
             env.set_object_array_element(&output_array, i as i32, &obj)
                 .expect("Failed to set array element");
         }
@@ -184,23 +189,26 @@ pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpSend
     sender: jlong,
 ) -> JObject<'static> {
     let progress = ffi::voidwarp_sender_get_progress(sender as *const ffi::FfiFileSender);
-    
-    let progress_class = env.find_class("com/voidwarp/android/native/NativeLib$TransferProgress")
+
+    let progress_class = env
+        .find_class("com/voidwarp/android/native/NativeLib$TransferProgress")
         .expect("Could not find TransferProgress class");
-        
+
     // Constructor: (Long, Long, Float, Float, Int)
-    let obj = env.new_object(
-        &progress_class,
-        "(JJFFI)V",
-        &[
-            JValue::Long(progress.bytes_transferred as i64),
-            JValue::Long(progress.total_bytes as i64),
-            JValue::Float(progress.percentage),
-            JValue::Float(progress.speed_mbps),
-            JValue::Int(progress.state)
-        ]
-    ).expect("Failed to create TransferProgress object");
-    
+    let obj = env
+        .new_object(
+            &progress_class,
+            "(JJFFI)V",
+            &[
+                JValue::Long(progress.bytes_transferred as i64),
+                JValue::Long(progress.total_bytes as i64),
+                JValue::Float(progress.percentage),
+                JValue::Float(progress.speed_mbps),
+                JValue::Int(progress.state),
+            ],
+        )
+        .expect("Failed to create TransferProgress object");
+
     obj
 }
 
