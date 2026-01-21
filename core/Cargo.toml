@@ -1,0 +1,27 @@
+[package]
+name = "voidwarp-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["VoidWarp Team"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Async Runtime
+tokio = { version = "1.36", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+bytes = "1.5"
+
+# Error Handling & Logging
+thiserror = "1.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+mdns-sd = "0.17.2"
+
+[dev-dependencies]
+tempfile = "3.24.0"
+tokio-test = "0.4"

@@ -1,0 +1,126 @@
+﻿<Window x:Class="VoidWarp.Windows.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="VoidWarp" Height="600" Width="900"
+        WindowStartupLocation="CenterScreen"
+        Background="#1a1a2e">
+    
+    <Window.Resources>
+        <!-- Modern Button Style -->
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Background" Value="#4a4e69"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="8" 
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#6c63ff"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- Card Style -->
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="#16213e"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="20"/>
+        </Style>
+    </Window.Resources>
+    
+    <Grid Margin="20">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="280"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        
+        <!-- Left Panel: Device List -->
+        <Border Style="{StaticResource Card}" Grid.Column="0" Margin="0,0,10,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                
+                <!-- Header -->
+                <StackPanel Grid.Row="0">
+                    <TextBlock Text="VoidWarp" FontSize="24" FontWeight="Bold" Foreground="#6c63ff"/>
+                    <TextBlock x:Name="DeviceIdText" Text="Device ID: Loading..." Foreground="#888" FontSize="11" Margin="0,5,0,0"/>
+                </StackPanel>
+                
+                <!-- Discovery Status -->
+                <StackPanel Grid.Row="1" Margin="0,15,0,10">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse x:Name="StatusIndicator" Width="10" Height="10" Fill="#888" Margin="0,0,8,0"/>
+                        <TextBlock x:Name="StatusText" Text="未开始发现" Foreground="#aaa" FontSize="12"/>
+                    </StackPanel>
+                </StackPanel>
+                
+                <!-- Device List -->
+                <ListBox x:Name="DeviceList" Grid.Row="2" 
+                         Background="Transparent" BorderThickness="0"
+                         Foreground="White" FontSize="13">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="5">
+                                <TextBlock Text="{Binding DeviceName}" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding IpAddress}" Foreground="#888" FontSize="11"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                
+                <!-- Actions -->
+                <StackPanel Grid.Row="3" Margin="0,10,0,0">
+                    <Button x:Name="DiscoverBtn" Content="开始发现设备" Style="{StaticResource ModernButton}" Click="DiscoverBtn_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+        
+        <!-- Right Panel: Transfer Area -->
+        <Border Style="{StaticResource Card}" Grid.Column="1" Margin="10,0,0,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                
+                <!-- Header -->
+                <TextBlock Grid.Row="0" Text="文件传输" FontSize="18" FontWeight="SemiBold" Foreground="White"/>
+                
+                <!-- Drop Zone -->
+                <Border Grid.Row="1" BorderBrush="#4a4e69" BorderThickness="2" CornerRadius="12" 
+                        Margin="0,15" Background="#1a1a2e" 
+                        AllowDrop="True" Drop="DropZone_Drop" DragOver="DropZone_DragOver">
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <TextBlock Text="📁" FontSize="48" HorizontalAlignment="Center"/>
+                        <TextBlock Text="拖拽文件到此处" FontSize="16" Foreground="#888" Margin="0,10,0,0"/>
+                        <TextBlock Text="或选择目标设备后点击发送" FontSize="12" Foreground="#666"/>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Transfer Status -->
+                <StackPanel Grid.Row="2">
+                    <TextBlock x:Name="TransferStatus" Text="等待传输..." Foreground="#888" FontSize="12"/>
+                    <ProgressBar x:Name="TransferProgress" Height="6" Margin="0,8,0,0" 
+                                 Background="#333" Foreground="#6c63ff" Value="0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

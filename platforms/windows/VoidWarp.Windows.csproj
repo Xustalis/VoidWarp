@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <!-- Copy native DLL to output -->
+  <ItemGroup>
+    <None Include="..\..\target\release\voidwarp_core.dll" 
+          CopyToOutputDirectory="PreserveNewest" 
+          Link="voidwarp_core.dll"
+          Condition="Exists('..\..\target\release\voidwarp_core.dll')" />
+  </ItemGroup>
+
+</Project>
+

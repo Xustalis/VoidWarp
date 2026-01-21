@@ -1,0 +1,92 @@
+name: VoidWarp CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  core-library:
+    name: Core Library (Rust)
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy, rustfmt
+        
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+      
+    - name: Check Formatting
+      run: cargo fmt -- --check
+      
+    - name: Run Clippy
+      run: cargo clippy -- -D warnings
+      
+    - name: Run Tests
+      run: cargo test
+      
+    - name: Build Relase
+      run: cargo build --release
+
+  windows-platform:
+    name: Windows Client (WPF)
+    needs: core-library
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Build Core DLL
+      run: cargo build --release
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+        
+    - name: Build WPF App
+      run: dotnet build platforms/windows/VoidWarp.Windows.csproj -c Release
+      
+  android-platform:
+    name: Android Client
+    needs: core-library
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: aarch64-linux-android
+        
+    - name: Setup Android NDK
+      uses: android-actions/setup-android@v3
+      
+    - name: Install cargo-ndk
+      run: cargo install cargo-ndk
+      
+    - name: Build Rust Library for Android
+      run: cargo ndk -t arm64-v8a -o platforms/android/app/src/main/jniLibs build --release
+      
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    - name: Build APK
+      working-directory: platforms/android
+      run: ./gradlew assembleDebug
