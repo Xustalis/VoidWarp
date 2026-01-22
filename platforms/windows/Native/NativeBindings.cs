@@ -131,5 +131,56 @@ namespace VoidWarp.Windows.Native
         }
 
         #endregion
+
+        #region File Receiver
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr voidwarp_create_receiver();
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern ushort voidwarp_receiver_get_port(IntPtr receiver);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void voidwarp_receiver_start(IntPtr receiver);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void voidwarp_receiver_stop(IntPtr receiver);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int voidwarp_receiver_get_state(IntPtr receiver);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern FfiPendingTransfer voidwarp_receiver_get_pending(IntPtr receiver);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void voidwarp_free_pending_transfer(FfiPendingTransfer transfer);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int voidwarp_receiver_accept(IntPtr receiver, [MarshalAs(UnmanagedType.LPUTF8Str)] string savePath);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int voidwarp_receiver_reject(IntPtr receiver);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern float voidwarp_receiver_get_progress(IntPtr receiver);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern ulong voidwarp_receiver_get_bytes_received(IntPtr receiver);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void voidwarp_destroy_receiver(IntPtr receiver);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct FfiPendingTransfer
+        {
+            public IntPtr SenderName;
+            public IntPtr SenderAddr;
+            public IntPtr FileName;
+            public ulong FileSize;
+            [MarshalAs(UnmanagedType.I1)]
+            public bool IsValid;
+        }
+
+        #endregion
     }
 }

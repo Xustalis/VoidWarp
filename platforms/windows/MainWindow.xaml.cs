@@ -4,6 +4,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Microsoft.Win32;
 using VoidWarp.Windows.Core;
 
 namespace VoidWarp.Windows
@@ -12,8 +13,10 @@ namespace VoidWarp.Windows
     {
         private VoidWarpEngine? _engine;
         private TransferManager? _transferManager;
+        private ReceiveManager? _receiveManager;
         private DispatcherTimer? _refreshTimer;
         private ObservableCollection<DiscoveredPeer> _peers = new();
+        private PendingTransferInfo? _pendingTransfer;
 
         public MainWindow()
         {
@@ -30,9 +33,14 @@ namespace VoidWarp.Windows
                 string deviceName = Environment.MachineName;
                 _engine = new VoidWarpEngine(deviceName);
                 _transferManager = new TransferManager();
+                _receiveManager = new ReceiveManager();
                 
                 _transferManager.ProgressChanged += OnProgressChanged;
                 _transferManager.TransferCompleted += OnTransferCompleted;
+                
+                _receiveManager.TransferRequested += OnIncomingTransfer;
+                _receiveManager.ProgressChanged += OnReceiveProgressChanged;
+                _receiveManager.TransferCompleted += OnReceiveCompleted;
                 
                 DeviceIdText.Text = $"设备 ID: {_engine.DeviceId[..8]}...";
             }
@@ -69,6 +77,135 @@ namespace VoidWarp.Windows
                 }
             });
         }
+
+        #region Receive Mode
+
+        private void ReceiveModeToggle_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_receiveManager == null) return;
+
+            _receiveManager.StartReceiving();
+            
+            ReceiveStatusPanel.Visibility = Visibility.Visible;
+            ReceiveStatusText.Text = "等待接收文件...";
+            ReceivePortText.Text = $"监听端口: {_receiveManager.Port}";
+            
+            TransferStatus.Text = "接收模式已开启";
+        }
+
+        private void ReceiveModeToggle_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (_receiveManager == null) return;
+
+            _receiveManager.StopReceiving();
+            
+            ReceiveStatusPanel.Visibility = Visibility.Collapsed;
+            IncomingTransferPanel.Visibility = Visibility.Collapsed;
+            DropZone.Visibility = Visibility.Visible;
+            
+            TransferStatus.Text = "等待传输...";
+        }
+
+        private void OnIncomingTransfer(PendingTransferInfo transfer)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _pendingTransfer = transfer;
+                
+                IncomingFileName.Text = $"文件: {transfer.FileName}";
+                IncomingFileSize.Text = $"大小: {transfer.FormattedSize}";
+                IncomingSender.Text = $"来自: {transfer.SenderName} ({transfer.SenderAddress})";
+                
+                IncomingTransferPanel.Visibility = Visibility.Visible;
+                DropZone.Visibility = Visibility.Collapsed;
+                
+                ReceiveStatusText.Text = "收到传输请求！";
+
+                // Also provide a modal prompt as requested (Offer -> user confirm).
+                var result = MessageBox.Show(
+                    $"来自: {transfer.SenderName} ({transfer.SenderAddress})\n文件: {transfer.FileName}\n大小: {transfer.FormattedSize}\n\n是否接收？",
+                    "收到文件传输请求",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question
+                );
+
+                if (result == MessageBoxResult.No)
+                {
+                    _receiveManager?.RejectTransfer();
+                    IncomingTransferPanel.Visibility = Visibility.Collapsed;
+                    DropZone.Visibility = Visibility.Visible;
+                    ReceiveStatusText.Text = "已拒绝，等待接收文件...";
+                    _pendingTransfer = null;
+                }
+            });
+        }
+
+        private void OnReceiveProgressChanged(float progress)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                TransferProgress.Value = progress;
+                TransferStatus.Text = $"正在接收... {progress:F1}%";
+            });
+        }
+
+        private void OnReceiveCompleted(bool success, string? error)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                IncomingTransferPanel.Visibility = Visibility.Collapsed;
+                
+                if (success)
+                {
+                    TransferStatus.Text = "接收完成！";
+                    TransferProgress.Value = 100;
+                    MessageBox.Show("文件接收成功！", "完成", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    TransferStatus.Text = $"接收失败: {error}";
+                    MessageBox.Show($"接收失败: {error}", "错误", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+                
+                ReceiveStatusText.Text = "等待接收文件...";
+            });
+        }
+
+        private async void AcceptBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (_receiveManager == null || _pendingTransfer == null) return;
+
+            var dialog = new SaveFileDialog
+            {
+                FileName = _pendingTransfer.FileName,
+                Title = "保存文件"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                AcceptBtn.IsEnabled = false;
+                RejectBtn.IsEnabled = false;
+                
+                TransferStatus.Text = "正在接收...";
+                await _receiveManager.AcceptTransferAsync(dialog.FileName);
+                
+                AcceptBtn.IsEnabled = true;
+                RejectBtn.IsEnabled = true;
+            }
+        }
+
+        private void RejectBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (_receiveManager == null) return;
+
+            _receiveManager.RejectTransfer();
+            
+            IncomingTransferPanel.Visibility = Visibility.Collapsed;
+            ReceiveStatusText.Text = "等待接收文件...";
+            _pendingTransfer = null;
+        }
+
+        #endregion
 
         private void DiscoverBtn_Click(object sender, RoutedEventArgs e)
         {
@@ -189,6 +326,7 @@ namespace VoidWarp.Windows
         {
             _refreshTimer?.Stop();
             _transferManager?.Dispose();
+            _receiveManager?.Dispose();
             _engine?.Dispose();
             base.OnClosed(e);
         }

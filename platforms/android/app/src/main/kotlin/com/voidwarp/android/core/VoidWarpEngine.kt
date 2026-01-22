@@ -1,6 +1,8 @@
 package com.voidwarp.android.core
 
 import com.voidwarp.android.native.NativeLib
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,15 +26,38 @@ class VoidWarpEngine(deviceName: String) : AutoCloseable {
         return NativeLib.voidwarpGeneratePairingCode() ?: "000-000"
     }
     
-    fun startDiscovery(port: Int = 42424): Boolean {
-        val result = NativeLib.voidwarpStartDiscovery(handle, port)
-        _isDiscovering.value = result == 0
-        return _isDiscovering.value
+    suspend fun startDiscovery(port: Int = 42424): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val result = NativeLib.voidwarpStartDiscovery(handle, port)
+            _isDiscovering.value = result == 0
+
+            // Auto-add localhost for USB/ADB forwarding scenarios
+            // This ensures that if the user has set up 'adb forward', they can connect via localhost
+            if (_isDiscovering.value) {
+                addManualPeer("usb-host", "USB/Localhost", "127.0.0.1", port)
+            }
+
+            _isDiscovering.value
+        } catch (t: Throwable) {
+            // Never crash UI from JNI problems. Keep state consistent.
+            _isDiscovering.value = false
+            false
+        }
+    }
+    
+    fun addManualPeer(id: String, name: String, ip: String, port: Int) {
+        NativeLib.voidwarpAddManualPeer(handle, id, name, ip, port)
+        refreshPeers() // Force refresh to show the new peer
     }
     
     fun stopDiscovery() {
-        NativeLib.voidwarpStopDiscovery(handle)
-        _isDiscovering.value = false
+        try {
+            NativeLib.voidwarpStopDiscovery(handle)
+        } catch (_: Throwable) {
+            // ignore
+        } finally {
+            _isDiscovering.value = false
+        }
     }
     
     fun refreshPeers() {

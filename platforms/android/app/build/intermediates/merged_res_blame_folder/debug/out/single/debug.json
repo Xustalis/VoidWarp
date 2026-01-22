@@ -1,0 +1,14 @@
+[
+    {
+        "merged": "com.voidwarp.android.app-merged_res-45:/xml_network_security_config.xml.flat",
+        "source": "com.voidwarp.android.app-main-47:/xml/network_security_config.xml"
+    },
+    {
+        "merged": "com.voidwarp.android.app-merged_res-45:/mipmap-xxhdpi_ic_launcher_round.png.flat",
+        "source": "com.voidwarp.android.app-main-47:/mipmap-xxhdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "com.voidwarp.android.app-merged_res-45:/mipmap-xxhdpi_ic_launcher.png.flat",
+        "source": "com.voidwarp.android.app-main-47:/mipmap-xxhdpi/ic_launcher.png"
+    }
+]

@@ -96,26 +96,68 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 
-                <!-- Header -->
-                <TextBlock Grid.Row="0" Text="文件传输" FontSize="18" FontWeight="SemiBold" Foreground="White"/>
+                <!-- Header with Receive Mode Toggle -->
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="文件传输" FontSize="18" FontWeight="SemiBold" Foreground="White"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <TextBlock Text="接收模式" Foreground="#888" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <CheckBox x:Name="ReceiveModeToggle" 
+                                  Checked="ReceiveModeToggle_Checked" 
+                                  Unchecked="ReceiveModeToggle_Unchecked"/>
+                    </StackPanel>
+                </Grid>
                 
-                <!-- Drop Zone -->
-                <Border Grid.Row="1" BorderBrush="#4a4e69" BorderThickness="2" CornerRadius="12" 
+                <!-- Receive Status (visible when receiving is enabled) -->
+                <Border x:Name="ReceiveStatusPanel" Grid.Row="1" Background="#2a2a4a" CornerRadius="8" 
+                        Margin="0,10,0,0" Padding="12" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock x:Name="ReceiveStatusText" Text="等待接收文件..." Foreground="#6c63ff" FontSize="12"/>
+                        <TextBlock x:Name="ReceivePortText" Text="监听端口: -" Foreground="#666" FontSize="11" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Incoming Transfer Notification -->
+                <Border x:Name="IncomingTransferPanel" Grid.Row="2" Background="#3a3a5a" CornerRadius="12" 
+                        Margin="0,15" Padding="20" Visibility="Collapsed" VerticalAlignment="Center">
+                    <StackPanel>
+                        <TextBlock Text="📥 收到文件传输请求" FontSize="16" Foreground="#6c63ff" FontWeight="SemiBold"/>
+                        <StackPanel Margin="0,12,0,0">
+                            <TextBlock x:Name="IncomingFileName" Text="文件: example.txt" Foreground="White" FontSize="13"/>
+                            <TextBlock x:Name="IncomingFileSize" Text="大小: 1.5 MB" Foreground="#aaa" FontSize="12" Margin="0,4,0,0"/>
+                            <TextBlock x:Name="IncomingSender" Text="来自: Unknown Device" Foreground="#888" FontSize="11" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,16,0,0" HorizontalAlignment="Center">
+                            <Button x:Name="AcceptBtn" Content="接受" Style="{StaticResource ModernButton}" 
+                                    Background="#4caf50" Margin="0,0,10,0" Click="AcceptBtn_Click"/>
+                            <Button x:Name="RejectBtn" Content="拒绝" Style="{StaticResource ModernButton}" 
+                                    Background="#f44336" Click="RejectBtn_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Drop Zone (visible when not receiving) -->
+                <Border x:Name="DropZone" Grid.Row="2" BorderBrush="#4a4e69" BorderThickness="2" CornerRadius="12" 
                         Margin="0,15" Background="#1a1a2e" 
                         AllowDrop="True" Drop="DropZone_Drop" DragOver="DropZone_DragOver">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <TextBlock Text="📁" FontSize="48" HorizontalAlignment="Center"/>
-                        <TextBlock Text="拖拽文件到此处" FontSize="16" Foreground="#888" Margin="0,10,0,0"/>
-                        <TextBlock Text="或选择目标设备后点击发送" FontSize="12" Foreground="#666"/>
+                        <TextBlock Text="拖拽文件到此处发送" FontSize="16" Foreground="#888" Margin="0,10,0,0"/>
+                        <TextBlock Text="先选择目标设备，再拖拽文件" FontSize="12" Foreground="#666"/>
                     </StackPanel>
                 </Border>
                 
-                <!-- Transfer Status -->
-                <StackPanel Grid.Row="2">
+                <!-- Transfer Progress -->
+                <StackPanel Grid.Row="3">
                     <TextBlock x:Name="TransferStatus" Text="等待传输..." Foreground="#888" FontSize="12"/>
                     <ProgressBar x:Name="TransferProgress" Height="6" Margin="0,8,0,0" 
                                  Background="#333" Foreground="#6c63ff" Value="0"/>

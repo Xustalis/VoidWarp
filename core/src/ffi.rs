@@ -6,6 +6,7 @@
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::ptr;
 
 use crate::discovery::DiscoveryManager;
@@ -13,14 +14,17 @@ use crate::security::crypto::{DeviceIdentity, PairingCode};
 
 /// Opaque handle to the VoidWarp engine
 pub struct VoidWarpHandle {
-    discovery: Option<DiscoveryManager>,
-    identity: DeviceIdentity,
+    pub(crate) discovery: Option<DiscoveryManager>,
+    pub(crate) identity: DeviceIdentity,
 }
 
 /// Initialize the VoidWarp engine
 /// Returns a handle that must be freed with `voidwarp_destroy`
 #[no_mangle]
 pub extern "C" fn voidwarp_init(device_name: *const c_char) -> *mut VoidWarpHandle {
+    // Make core logging best-effort. Never crash host process from init.
+    crate::init();
+
     let name = if device_name.is_null() {
         "VoidWarp Device".to_string()
     } else {
@@ -87,27 +91,45 @@ pub extern "C" fn voidwarp_free_string(s: *mut c_char) {
 /// Returns 0 on success, -1 on error
 #[no_mangle]
 pub extern "C" fn voidwarp_start_discovery(handle: *mut VoidWarpHandle, port: u16) -> i32 {
-    if handle.is_null() {
-        return -1;
-    }
-
-    let handle = unsafe { &mut *handle };
-
-    match DiscoveryManager::new() {
-        Ok(mut manager) => {
-            if let Err(e) = manager.register_service(
-                &handle.identity.device_id,
-                &handle.identity.device_name,
-                port,
-            ) {
-                tracing::error!("Failed to register service: {}", e);
-                return -1;
-            }
-            handle.discovery = Some(manager);
-            0
+    // CRITICAL: Never unwind across FFI; on Android it aborts the process.
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        if handle.is_null() {
+            return -1;
         }
-        Err(e) => {
-            tracing::error!("Failed to create discovery manager: {}", e);
+
+        let handle = unsafe { &mut *handle };
+
+        match DiscoveryManager::new() {
+            Ok(mut manager) => {
+                if let Err(e) = manager.register_service(
+                    &handle.identity.device_id,
+                    &handle.identity.device_name,
+                    port,
+                ) {
+                    tracing::error!("Failed to register service: {}", e);
+                    return -1;
+                }
+
+                // Start background browsing thread
+                if let Err(e) = manager.start_background_browsing() {
+                    tracing::error!("Failed to start background browsing: {}", e);
+                    return -1;
+                }
+
+                handle.discovery = Some(manager);
+                0
+            }
+            Err(e) => {
+                tracing::error!("Failed to create discovery manager: {}", e);
+                -1
+            }
+        }
+    }));
+
+    match result {
+        Ok(code) => code,
+        Err(_) => {
+            tracing::error!("panic caught in voidwarp_start_discovery");
             -1
         }
     }
@@ -122,6 +144,38 @@ pub extern "C" fn voidwarp_stop_discovery(handle: *mut VoidWarpHandle) {
 
     let handle = unsafe { &mut *handle };
     handle.discovery = None;
+}
+
+/// Manually add a peer (e.g. for localhost connection)
+#[no_mangle]
+pub extern "C" fn voidwarp_add_manual_peer(
+    handle: *mut VoidWarpHandle,
+    device_id: *const c_char,
+    device_name: *const c_char,
+    ip_address: *const c_char,
+    port: u16,
+) -> i32 {
+    if handle.is_null() || device_id.is_null() || device_name.is_null() || ip_address.is_null() {
+        return -1;
+    }
+
+    let handle = unsafe { &mut *handle };
+    let discovery = match &handle.discovery {
+        Some(d) => d,
+        None => return -1,
+    };
+
+    let device_id = unsafe { CStr::from_ptr(device_id) }.to_string_lossy().to_string();
+    let device_name = unsafe { CStr::from_ptr(device_name) }.to_string_lossy().to_string();
+    let ip_str = unsafe { CStr::from_ptr(ip_address) }.to_string_lossy();
+    
+    let ip: std::net::IpAddr = match ip_str.parse() {
+        Ok(ip) => ip,
+        Err(_) => return -1,
+    };
+
+    discovery.add_manual_peer(device_id, device_name, ip, port);
+    0
 }
 
 /// Discovered peer info for FFI
@@ -167,9 +221,17 @@ pub extern "C" fn voidwarp_get_peers(handle: *const VoidWarpHandle) -> FfiPeerLi
     let mut ffi_peers: Vec<FfiPeer> = peers
         .iter()
         .map(|p| {
-            let ip_str = p
-                .addresses
-                .first()
+            // Prioritize IPv4 and avoid link-local/loopback
+            let best_ip = p.addresses.iter()
+                .find(|ip| {
+                    match ip {
+                        std::net::IpAddr::V4(ipv4) => !ipv4.is_loopback() && !ipv4.is_link_local(),
+                        _ => false,
+                    }
+                })
+                .or_else(|| p.addresses.first()); // Fallback to first available
+
+            let ip_str = best_ip
                 .map(|a| a.to_string())
                 .unwrap_or_default();
 
@@ -188,6 +250,7 @@ pub extern "C" fn voidwarp_get_peers(handle: *const VoidWarpHandle) -> FfiPeerLi
         })
         .collect();
 
+    ffi_peers.shrink_to_fit();
     let count = ffi_peers.len();
     let ptr = ffi_peers.as_mut_ptr();
     std::mem::forget(ffi_peers);
@@ -383,6 +446,196 @@ pub extern "C" fn voidwarp_destroy_sender(sender: *mut FfiFileSender) {
     if !sender.is_null() {
         unsafe {
             let _ = Box::from_raw(sender);
+        }
+    }
+}
+
+// ============================================================================
+// File Receiver FFI
+// ============================================================================
+
+use crate::receiver::{FileReceiverServer, ReceiverState};
+use std::path::PathBuf;
+
+/// Opaque handle to a file receiver server
+pub struct FfiFileReceiver {
+    server: FileReceiverServer,
+}
+
+/// Pending transfer info for FFI
+#[repr(C)]
+pub struct FfiPendingTransfer {
+    pub sender_name: *mut c_char,
+    pub sender_addr: *mut c_char,
+    pub file_name: *mut c_char,
+    pub file_size: u64,
+    pub is_valid: bool,
+}
+
+/// Create a file receiver server
+/// Returns null on error
+#[no_mangle]
+pub extern "C" fn voidwarp_create_receiver() -> *mut FfiFileReceiver {
+    match FileReceiverServer::new() {
+        Ok(server) => Box::into_raw(Box::new(FfiFileReceiver { server })),
+        Err(e) => {
+            tracing::error!("Failed to create receiver: {}", e);
+            ptr::null_mut()
+        }
+    }
+}
+
+/// Get the port the receiver is listening on
+#[no_mangle]
+pub extern "C" fn voidwarp_receiver_get_port(receiver: *const FfiFileReceiver) -> u16 {
+    if receiver.is_null() {
+        return 0;
+    }
+    unsafe { (*receiver).server.port() }
+}
+
+/// Start listening for incoming transfers
+#[no_mangle]
+pub extern "C" fn voidwarp_receiver_start(receiver: *mut FfiFileReceiver) {
+    if receiver.is_null() {
+        return;
+    }
+    unsafe { (*receiver).server.start() }
+}
+
+/// Stop listening
+#[no_mangle]
+pub extern "C" fn voidwarp_receiver_stop(receiver: *mut FfiFileReceiver) {
+    if receiver.is_null() {
+        return;
+    }
+    unsafe { (*receiver).server.stop() }
+}
+
+/// Get receiver state
+/// Returns: 0=Idle, 1=Listening, 2=AwaitingAccept, 3=Receiving, 4=Completed, 5=Error
+#[no_mangle]
+pub extern "C" fn voidwarp_receiver_get_state(receiver: *const FfiFileReceiver) -> i32 {
+    if receiver.is_null() {
+        return 5; // Error
+    }
+    match unsafe { (*receiver).server.state() } {
+        ReceiverState::Idle => 0,
+        ReceiverState::Listening => 1,
+        ReceiverState::AwaitingAccept => 2,
+        ReceiverState::Receiving => 3,
+        ReceiverState::Completed => 4,
+        ReceiverState::Error => 5,
+    }
+}
+
+/// Get pending transfer info
+/// The returned struct's strings must be freed with voidwarp_free_string
+/// Check is_valid field to see if there is a pending transfer
+#[no_mangle]
+pub extern "C" fn voidwarp_receiver_get_pending(receiver: *const FfiFileReceiver) -> FfiPendingTransfer {
+    let empty = FfiPendingTransfer {
+        sender_name: ptr::null_mut(),
+        sender_addr: ptr::null_mut(),
+        file_name: ptr::null_mut(),
+        file_size: 0,
+        is_valid: false,
+    };
+
+    if receiver.is_null() {
+        return empty;
+    }
+
+    match unsafe { (*receiver).server.pending_transfer() } {
+        Some(transfer) => FfiPendingTransfer {
+            sender_name: CString::new(transfer.sender_name)
+                .map(|s| s.into_raw())
+                .unwrap_or(ptr::null_mut()),
+            sender_addr: CString::new(transfer.sender_addr.to_string())
+                .map(|s| s.into_raw())
+                .unwrap_or(ptr::null_mut()),
+            file_name: CString::new(transfer.file_name)
+                .map(|s| s.into_raw())
+                .unwrap_or(ptr::null_mut()),
+            file_size: transfer.file_size,
+            is_valid: true,
+        },
+        None => empty,
+    }
+}
+
+/// Free a pending transfer struct's strings
+#[no_mangle]
+pub extern "C" fn voidwarp_free_pending_transfer(transfer: FfiPendingTransfer) {
+    voidwarp_free_string(transfer.sender_name);
+    voidwarp_free_string(transfer.sender_addr);
+    voidwarp_free_string(transfer.file_name);
+}
+
+/// Accept the pending transfer and save to the given path
+/// Returns 0 on success, -1 on error
+#[no_mangle]
+pub extern "C" fn voidwarp_receiver_accept(
+    receiver: *mut FfiFileReceiver,
+    save_path: *const c_char,
+) -> i32 {
+    if receiver.is_null() || save_path.is_null() {
+        return -1;
+    }
+
+    let path_str = unsafe { CStr::from_ptr(save_path) }.to_string_lossy();
+    let path = PathBuf::from(path_str.as_ref());
+
+    match unsafe { (*receiver).server.accept_transfer(&path) } {
+        Ok(_) => 0,
+        Err(e) => {
+            tracing::error!("Accept transfer failed: {}", e);
+            -1
+        }
+    }
+}
+
+/// Reject the pending transfer
+/// Returns 0 on success, -1 on error
+#[no_mangle]
+pub extern "C" fn voidwarp_receiver_reject(receiver: *mut FfiFileReceiver) -> i32 {
+    if receiver.is_null() {
+        return -1;
+    }
+
+    match unsafe { (*receiver).server.reject_transfer() } {
+        Ok(_) => 0,
+        Err(e) => {
+            tracing::error!("Reject transfer failed: {}", e);
+            -1
+        }
+    }
+}
+
+/// Get receive progress (0-100)
+#[no_mangle]
+pub extern "C" fn voidwarp_receiver_get_progress(receiver: *const FfiFileReceiver) -> f32 {
+    if receiver.is_null() {
+        return 0.0;
+    }
+    unsafe { (*receiver).server.progress() }
+}
+
+/// Get bytes received so far
+#[no_mangle]
+pub extern "C" fn voidwarp_receiver_get_bytes_received(receiver: *const FfiFileReceiver) -> u64 {
+    if receiver.is_null() {
+        return 0;
+    }
+    unsafe { (*receiver).server.bytes_received() }
+}
+
+/// Destroy receiver
+#[no_mangle]
+pub extern "C" fn voidwarp_destroy_receiver(receiver: *mut FfiFileReceiver) {
+    if !receiver.is_null() {
+        unsafe {
+            let _ = Box::from_raw(receiver);
         }
     }
 }
