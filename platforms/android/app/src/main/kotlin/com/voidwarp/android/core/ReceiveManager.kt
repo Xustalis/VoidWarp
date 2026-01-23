@@ -78,28 +78,42 @@ class ReceiveManager {
     fun initialize(): Boolean {
         if (receiverHandle != 0L) return true
         
-        receiverHandle = NativeLib.voidwarpCreateReceiver()
-        if (receiverHandle == 0L) {
-            return false
+        return try {
+            android.util.Log.d("ReceiveManager", "Creating receiver...")
+            receiverHandle = NativeLib.voidwarpCreateReceiver()
+            if (receiverHandle == 0L) {
+                android.util.Log.e("ReceiveManager", "Failed to create receiver (null handle)")
+                return false
+            }
+            
+            _port.value = NativeLib.voidwarpReceiverGetPort(receiverHandle)
+            android.util.Log.d("ReceiveManager", "Receiver created on port: ${_port.value}")
+            true
+        } catch (t: Throwable) {
+            android.util.Log.e("ReceiveManager", "Exception creating receiver: ${t.message}", t)
+            false
         }
-        
-        _port.value = NativeLib.voidwarpReceiverGetPort(receiverHandle)
-        return true
     }
     
     /**
      * Start listening for incoming transfers
      */
     fun startReceiving() {
-        if (receiverHandle == 0L && !initialize()) {
+        try {
+            if (receiverHandle == 0L && !initialize()) {
+                _state.value = ReceiverState.ERROR
+                return
+            }
+            
+            android.util.Log.d("ReceiveManager", "Starting receiver...")
+            NativeLib.voidwarpReceiverStart(receiverHandle)
+            _state.value = ReceiverState.LISTENING
+            
+            startPolling()
+        } catch (t: Throwable) {
+            android.util.Log.e("ReceiveManager", "Exception starting receiver: ${t.message}", t)
             _state.value = ReceiverState.ERROR
-            return
         }
-        
-        NativeLib.voidwarpReceiverStart(receiverHandle)
-        _state.value = ReceiverState.LISTENING
-        
-        startPolling()
     }
     
     /**

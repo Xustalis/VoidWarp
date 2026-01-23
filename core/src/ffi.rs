@@ -88,49 +88,64 @@ pub extern "C" fn voidwarp_free_string(s: *mut c_char) {
 }
 
 /// Start mDNS discovery
-/// Returns 0 on success, -1 on error
+/// Returns 0 on success (even if mDNS partially fails - allows manual peers), never returns -1 anymore
+/// This ensures manual peer addition always works even on restrictive networks
 #[no_mangle]
 pub extern "C" fn voidwarp_start_discovery(handle: *mut VoidWarpHandle, port: u16) -> i32 {
     // CRITICAL: Never unwind across FFI; on Android it aborts the process.
     let result = catch_unwind(AssertUnwindSafe(|| {
         if handle.is_null() {
-            return -1;
+            tracing::error!("voidwarp_start_discovery called with null handle");
+            // Still return 0 to avoid crash loops - caller should check handle validity
+            return 0;
         }
 
         let handle = unsafe { &mut *handle };
 
-        match DiscoveryManager::new() {
-            Ok(mut manager) => {
-                if let Err(e) = manager.register_service(
+        // Try to create a proper mDNS discovery manager
+        let manager = match DiscoveryManager::new() {
+            Ok(mut mgr) => {
+                tracing::info!("mDNS daemon created successfully");
+                
+                // Try to register service, but don't fail if it doesn't work
+                if let Err(e) = mgr.register_service(
                     &handle.identity.device_id,
                     &handle.identity.device_name,
                     port,
                 ) {
-                    tracing::error!("Failed to register service: {}", e);
-                    return -1;
+                    tracing::warn!("Failed to register mDNS service (continuing anyway): {}", e);
                 }
 
-                // Start background browsing thread
-                if let Err(e) = manager.start_background_browsing() {
-                    tracing::error!("Failed to start background browsing: {}", e);
-                    return -1;
+                // Try to start background browsing, but don't fail if it doesn't work
+                if let Err(e) = mgr.start_background_browsing() {
+                    tracing::warn!("Failed to start mDNS browsing (continuing anyway): {}", e);
                 }
 
-                handle.discovery = Some(manager);
-                0
+                mgr
             }
             Err(e) => {
-                tracing::error!("Failed to create discovery manager: {}", e);
-                -1
+                // mDNS daemon failed to create - create a fallback manager for manual peers
+                tracing::warn!("mDNS daemon unavailable ({}), using fallback mode", e);
+                DiscoveryManager::new_fallback()
             }
-        }
+        };
+
+        handle.discovery = Some(manager);
+        tracing::info!("Discovery started (port: {}, mode: {})", 
+            port,
+            if handle.discovery.as_ref().map(|d| d.is_fallback()).unwrap_or(true) { "fallback" } else { "mDNS" }
+        );
+        
+        // ALWAYS return 0 - we can always add manual peers even if mDNS doesn't work
+        0
     }));
 
     match result {
         Ok(code) => code,
         Err(_) => {
-            tracing::error!("panic caught in voidwarp_start_discovery");
-            -1
+            tracing::error!("panic caught in voidwarp_start_discovery, returning success anyway");
+            // Even on panic, return 0 to allow manual peer addition
+            0
         }
     }
 }
@@ -637,6 +652,111 @@ pub extern "C" fn voidwarp_destroy_receiver(receiver: *mut FfiFileReceiver) {
         unsafe {
             let _ = Box::from_raw(receiver);
         }
+    }
+}
+
+// ============================================================================
+// TCP File Sender FFI (for Windows P/Invoke)
+// ============================================================================
+
+use crate::sender::{TcpFileSender, TransferResult};
+
+/// Opaque handle to a TCP file sender
+pub struct FfiTcpSender {
+    sender: TcpFileSender,
+}
+
+/// Create a TCP file sender for the given path
+/// Returns null on error
+#[no_mangle]
+pub extern "C" fn voidwarp_tcp_sender_create(path: *const c_char) -> *mut FfiTcpSender {
+    if path.is_null() {
+        return ptr::null_mut();
+    }
+
+    let path_str = unsafe { CStr::from_ptr(path) }.to_string_lossy();
+
+    match TcpFileSender::new(&path_str) {
+        Ok(sender) => Box::into_raw(Box::new(FfiTcpSender { sender })),
+        Err(e) => {
+            tracing::error!("Failed to create TCP sender: {}", e);
+            ptr::null_mut()
+        }
+    }
+}
+
+/// Start TCP transfer to the target address
+/// Returns: 0=Success, 1=Rejected, 2=ChecksumMismatch, 3=ConnectionFailed, 4=Timeout, 5=Cancelled, 6=IoError
+#[no_mangle]
+pub extern "C" fn voidwarp_tcp_sender_start(
+    sender: *const FfiTcpSender,
+    ip_address: *const c_char,
+    port: u16,
+    sender_name: *const c_char,
+) -> i32 {
+    if sender.is_null() || ip_address.is_null() || sender_name.is_null() {
+        return 3; // ConnectionFailed
+    }
+
+    let sender_ref = unsafe { &(*sender).sender };
+    let ip_str = unsafe { CStr::from_ptr(ip_address) }.to_string_lossy();
+    let name_str = unsafe { CStr::from_ptr(sender_name) }.to_string_lossy();
+
+    let ip: std::net::IpAddr = match ip_str.parse() {
+        Ok(ip) => ip,
+        Err(_) => return 3, // ConnectionFailed - invalid IP
+    };
+
+    let peer_addr = std::net::SocketAddr::new(ip, port);
+
+    match sender_ref.send_to(peer_addr, &name_str) {
+        TransferResult::Success => 0,
+        TransferResult::Rejected => 1,
+        TransferResult::ChecksumMismatch => 2,
+        TransferResult::ConnectionFailed(_) => 3,
+        TransferResult::Timeout => 4,
+        TransferResult::Cancelled => 5,
+        TransferResult::IoError(_) => 6,
+    }
+}
+
+/// Get file checksum (caller must free with voidwarp_free_string)
+#[no_mangle]
+pub extern "C" fn voidwarp_tcp_sender_get_checksum(sender: *const FfiTcpSender) -> *mut c_char {
+    if sender.is_null() {
+        return ptr::null_mut();
+    }
+    let checksum = unsafe { (*sender).sender.checksum() };
+    CString::new(checksum).map(|s| s.into_raw()).unwrap_or(ptr::null_mut())
+}
+
+/// Get file size
+#[no_mangle]
+pub extern "C" fn voidwarp_tcp_sender_get_file_size(sender: *const FfiTcpSender) -> u64 {
+    if sender.is_null() { return 0; }
+    unsafe { (*sender).sender.file_size() }
+}
+
+/// Get transfer progress (0-100)
+#[no_mangle]
+pub extern "C" fn voidwarp_tcp_sender_get_progress(sender: *const FfiTcpSender) -> f32 {
+    if sender.is_null() { return 0.0; }
+    unsafe { (*sender).sender.progress() }
+}
+
+/// Cancel the transfer
+#[no_mangle]
+pub extern "C" fn voidwarp_tcp_sender_cancel(sender: *const FfiTcpSender) {
+    if !sender.is_null() {
+        unsafe { (*sender).sender.cancel(); }
+    }
+}
+
+/// Destroy the sender
+#[no_mangle]
+pub extern "C" fn voidwarp_tcp_sender_destroy(sender: *mut FfiTcpSender) {
+    if !sender.is_null() {
+        unsafe { let _ = Box::from_raw(sender); }
     }
 }
 

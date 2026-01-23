@@ -10,6 +10,8 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::fs::File;
 
+use crate::checksum::{calculate_chunk_checksum, calculate_file_checksum};
+
 /// Incoming transfer request information
 #[derive(Debug, Clone)]
 pub struct IncomingTransfer {
@@ -17,6 +19,7 @@ pub struct IncomingTransfer {
     pub sender_addr: SocketAddr,
     pub file_name: String,
     pub file_size: u64,
+    pub file_checksum: String, // Hex string
 }
 
 /// Receiver state
@@ -44,10 +47,23 @@ pub struct FileReceiverServer {
 
 impl FileReceiverServer {
     /// Create a new file receiver server
+    /// Tries to bind to port 42424 first (for ADB port forwarding compatibility),
+    /// falls back to a random available port if 42424 is in use.
     pub fn new() -> std::io::Result<Self> {
-        // Bind to any available port
-        let listener = TcpListener::bind("0.0.0.0:0")?;
-        let port = listener.local_addr()?.port();
+        // Try to bind to the standard port first (for USB/ADB compatibility)
+        let (listener, port) = match TcpListener::bind("0.0.0.0:42424") {
+            Ok(l) => {
+                tracing::info!("FileReceiverServer bound to standard port 42424");
+                (l, 42424)
+            }
+            Err(_) => {
+                // Fall back to any available port
+                let l = TcpListener::bind("0.0.0.0:0")?;
+                let p = l.local_addr()?.port();
+                tracing::info!("Port 42424 in use, bound to fallback port {}", p);
+                (l, p)
+            }
+        };
         
         // Set non-blocking for the listener
         listener.set_nonblocking(true)?;
@@ -141,6 +157,20 @@ impl FileReceiverServer {
                         }
                         let file_size = u64::from_be_bytes(file_size_buf);
                         
+                        // Read checksum (hex string)
+                        let mut checksum_len_buf = [0u8; 1];
+                        if stream.read_exact(&mut checksum_len_buf).is_err() {
+                            tracing::warn!("Failed to read checksum length");
+                            continue;
+                        }
+                        let checksum_len = checksum_len_buf[0] as usize;
+                        let mut checksum_buf = vec![0u8; checksum_len];
+                        if stream.read_exact(&mut checksum_buf).is_err() {
+                            tracing::warn!("Failed to read checksum");
+                            continue;
+                        }
+                        let file_checksum = String::from_utf8_lossy(&checksum_buf).to_string();
+
                         tracing::info!(
                             "Incoming transfer: '{}' ({} bytes) from '{}'",
                             file_name, file_size, sender_name
@@ -152,6 +182,7 @@ impl FileReceiverServer {
                             sender_addr: addr,
                             file_name,
                             file_size,
+                            file_checksum,
                         };
                         
                         *pending_transfer.lock().unwrap() = Some(transfer);
@@ -196,32 +227,117 @@ impl FileReceiverServer {
                 self.bytes_received.store(0, Ordering::SeqCst);
                 
                 // Send accept response
-                conn.write_all(&[1u8])?; // 1 = accepted
+                if let Err(e) = conn.write_all(&[1u8]) { // 1 = accepted
+                     tracing::error!("Failed to send accept: {}", e);
+                     return Err(e);
+                }
                 
                 // Create the file
                 let mut file = File::create(save_path)?;
                 
-                // Receive the file data
-                let mut buffer = vec![0u8; 64 * 1024]; // 64KB buffer
+                // Receive the file in chunks
                 let mut received: u64 = 0;
                 
-                while received < info.file_size {
-                    let to_read = std::cmp::min(buffer.len() as u64, info.file_size - received) as usize;
-                    let n = conn.read(&mut buffer[..to_read])?;
-                    if n == 0 {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::UnexpectedEof,
-                            "Connection closed before transfer complete",
-                        ));
-                    }
-                    file.write_all(&buffer[..n])?;
-                    received += n as u64;
-                    self.bytes_received.store(received, Ordering::SeqCst);
+                // If resuming, we would send the resume chunk index here.
+                // For now, we always start from 0.
+                // Protocol requires sending 8 bytes of resume index if we want to support it?
+                // sender.rs L178: reads 8 bytes IF not resuming from its side?
+                // Actually sender logic:
+                // let start_chunk = if self.resume_from_chunk > 0 { ... } else { check_receiver_resume(...) }
+                // Receiver isn't currently designed to request resume, so we should send 0 or nothing?
+                // Wait, sender protocol says:
+                // "If resuming... else { let mut resume_buf = [0u8; 8]; if stream.read_exact... }"
+                // Sender tries to read 8 bytes. If we don't send anything, sender might timeout or continue with 0 if read fails?
+                // "if stream.read_exact(&mut resume_buf).is_ok()"
+                // Best to send 0u64 explicitly to indicate start from beginning.
+                let _ = conn.write_all(&0u64.to_be_bytes());
+                
+                loop {
+                     // Check if transfer is complete
+                     if received >= info.file_size {
+                         break;
+                     }
+
+                     // Read chunk header: [index: u64][len: u32]
+                     let mut header_buf = [0u8; 12];
+                     match conn.read_exact(&mut header_buf) {
+                         Ok(_) => {}
+                         Err(ref e) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
+                         Err(e) => return Err(e),
+                     }
+                     
+                     let chunk_index = u64::from_be_bytes(header_buf[0..8].try_into().unwrap());
+                     let chunk_len = u32::from_be_bytes(header_buf[8..12].try_into().unwrap()) as usize;
+                     
+                     // Read chunk data
+                     let mut data = vec![0u8; chunk_len];
+                     conn.read_exact(&mut data)?;
+                     
+                     // Read checksum (8 bytes)
+                     let mut chunk_checksum_buf = [0u8; 8];
+                     conn.read_exact(&mut chunk_checksum_buf)?;
+                     
+                     // Verify checksum
+                     // sender sends first 8 bytes of hex string
+                     let calculated_hex = calculate_chunk_checksum(&data);
+                     let calculated_bytes: Vec<u8> = (0..std::cmp::min(16, calculated_hex.len()))
+                        .step_by(2)
+                        .filter_map(|i| u8::from_str_radix(&calculated_hex[i..i+2], 16).ok())
+                        .collect();
+                     
+                     if calculated_bytes != chunk_checksum_buf {
+                         tracing::warn!("Checksum mismatch for chunk {}", chunk_index);
+                         // Send ACK with error (1)
+                         // [index: 8 bytes][status: 1 byte]
+                         conn.write_all(&chunk_index.to_be_bytes())?;
+                         conn.write_all(&[1u8])?;
+                         // In a real implementation we might want to continue loop to let sender retry?
+                         // Sender will retry on its own, but we just consumed the data.
+                         // We should NOT write to file.
+                         continue;
+                     }
+                     
+                     // Write to file
+                     // Seek to correct position (supports out of order or resume)
+                     // Using chunk_index * default_chunk_size might be risky if chunk size variable?
+                     // sender.rs uses fixed chunk size usually.
+                     // But we have `received` counter.
+                     // Let's assume sequential for now OR we blindly append?
+                     // Sender sends [index], so we should use it.
+                     // But we don't know sender's chunk size here (it's not in handshake packets, only implicitly).
+                     // However, we can just append if we assume ordered delivery (TCP).
+                     // But we should use seek for correctness if we ever support resume.
+                     // Since we don't know the chunk size sender is using (it's configured on sender),
+                     // we can't easily seek without tracking position.
+                     // But wait, `data` has length. 
+                     // Ideally we just write `data` to the file.
+                     // If we want resume, we need to know offsets.
+                     // For now, let's just write_all. TCP ensures order.
+                     file.write_all(&data)?;
+                     received += data.len() as u64; // Use actual data len
+                     self.bytes_received.store(received, Ordering::SeqCst);
+                     
+                     // Send ACK success (0)
+                     conn.write_all(&chunk_index.to_be_bytes())?;
+                     conn.write_all(&[0u8])?;
                 }
                 
+                // Final verification
                 file.flush()?;
-                *self.state.lock().unwrap() = ReceiverState::Completed;
-                tracing::info!("Transfer completed: {} bytes received", received);
+                
+                // Compare full file checksum
+                let final_checksum = calculate_file_checksum(&save_path)?;
+                let success = final_checksum == info.file_checksum;
+                
+                if success {
+                     tracing::info!("Transfer completed and verified!");
+                     conn.write_all(&[1u8])?; // Final success
+                     *self.state.lock().unwrap() = ReceiverState::Completed;
+                } else {
+                     tracing::error!("Final checksum verification failed");
+                     conn.write_all(&[0u8])?; // Final failure
+                     // Maybe delete file?
+                }
                 
                 Ok(())
             }

@@ -42,6 +42,15 @@ namespace VoidWarp.Windows.Native
         public static extern void voidwarp_stop_discovery(IntPtr handle);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int voidwarp_add_manual_peer(
+            IntPtr handle,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string deviceId,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string deviceName,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string ipAddress,
+            ushort port
+        );
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern FfiPeerList voidwarp_get_peers(IntPtr handle);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
@@ -180,6 +189,36 @@ namespace VoidWarp.Windows.Native
             [MarshalAs(UnmanagedType.I1)]
             public bool IsValid;
         }
+
+        #endregion
+
+        #region TCP Sender
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr voidwarp_tcp_sender_create([MarshalAs(UnmanagedType.LPUTF8Str)] string filePath);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int voidwarp_tcp_sender_start(
+            IntPtr sender,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string ipAddress,
+            ushort port,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string senderName
+        );
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr voidwarp_tcp_sender_get_checksum(IntPtr sender);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern ulong voidwarp_tcp_sender_get_file_size(IntPtr sender);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern float voidwarp_tcp_sender_get_progress(IntPtr sender);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void voidwarp_tcp_sender_cancel(IntPtr sender);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void voidwarp_tcp_sender_destroy(IntPtr sender);
 
         #endregion
     }

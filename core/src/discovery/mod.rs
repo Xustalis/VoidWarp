@@ -29,22 +29,41 @@ pub enum DiscoveryEvent {
 
 /// Discovery Manager for mDNS operations
 pub struct DiscoveryManager {
-    daemon: ServiceDaemon,
+    daemon: Option<ServiceDaemon>,
     peers: Arc<RwLock<HashMap<String, DiscoveredPeer>>>,
     our_service: Option<String>,
+    fallback_mode: bool,
 }
 
 impl DiscoveryManager {
-    /// Create a new DiscoveryManager
+    /// Create a new DiscoveryManager with mDNS support
     pub fn new() -> Result<Self, String> {
         let daemon =
             ServiceDaemon::new().map_err(|e| format!("Failed to create mDNS daemon: {}", e))?;
 
         Ok(DiscoveryManager {
-            daemon,
+            daemon: Some(daemon),
             peers: Arc::new(RwLock::new(HashMap::new())),
             our_service: None,
+            fallback_mode: false,
         })
+    }
+
+    /// Create a fallback DiscoveryManager without mDNS (for manual peers only)
+    /// This always succeeds - manual peer addition should always work
+    pub fn new_fallback() -> Self {
+        tracing::info!("Creating fallback discovery manager (manual peers only)");
+        DiscoveryManager {
+            daemon: None,
+            peers: Arc::new(RwLock::new(HashMap::new())),
+            our_service: None,
+            fallback_mode: true,
+        }
+    }
+
+    /// Check if this is a fallback (no mDNS) manager
+    pub fn is_fallback(&self) -> bool {
+        self.fallback_mode
     }
 
     /// Register our service for others to discover
@@ -74,9 +93,11 @@ impl DiscoveryManager {
 
         // Generate a unique instance name using device_id
         let instance_name = device_id;
-        
-        // Use the device's hostname for proper resolution
-        let hostname = format!("{}.local.", device_id);
+
+        // Use a simple, valid mDNS host label instead of a random opaque ID.
+        // Address records are filled in by `enable_addr_auto`, so host name
+        // uniqueness is not critical for connectivity.
+        let hostname = "voidwarp.local.";
 
         tracing::info!(
             "Registering mDNS service: instance={}, hostname={}, port={}, platform={}",
@@ -96,7 +117,9 @@ impl DiscoveryManager {
 
         tracing::debug!("Service info created with auto-address detection enabled");
 
-        self.daemon
+        let daemon = self.daemon.as_ref()
+            .ok_or_else(|| "mDNS daemon not available".to_string())?;
+        daemon
             .register(service_info)
             .map_err(|e| format!("Failed to register service: {}", e))?;
 
@@ -112,7 +135,9 @@ impl DiscoveryManager {
     /// Start browsing for peers
     pub fn browse(&self) -> Result<MdnsReceiver<ServiceEvent>, String> {
         tracing::info!("Starting mDNS browse for service type: {}", SERVICE_TYPE);
-        self.daemon
+        let daemon = self.daemon.as_ref()
+            .ok_or_else(|| "mDNS daemon not available (fallback mode)".to_string())?;
+        daemon
             .browse(SERVICE_TYPE)
             .map_err(|e| format!("Failed to browse: {}", e))
     }
@@ -320,8 +345,10 @@ impl DiscoveryManager {
     /// Unregister our service
     pub fn unregister(&mut self) {
         if let Some(ref service_id) = self.our_service {
-            let fullname = format!("{}.{}", service_id, SERVICE_TYPE);
-            let _ = self.daemon.unregister(&fullname);
+            if let Some(ref daemon) = self.daemon {
+                let fullname = format!("{}.{}", service_id, SERVICE_TYPE);
+                let _ = daemon.unregister(&fullname);
+            }
             self.our_service = None;
         }
     }
@@ -330,7 +357,9 @@ impl DiscoveryManager {
 impl Drop for DiscoveryManager {
     fn drop(&mut self) {
         self.unregister();
-        let _ = self.daemon.shutdown();
+        if let Some(ref daemon) = self.daemon {
+            let _ = daemon.shutdown();
+        }
     }
 }
 

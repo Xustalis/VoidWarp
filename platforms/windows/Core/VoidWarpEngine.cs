@@ -40,13 +40,29 @@ namespace VoidWarp.Windows.Core
         }
 
         /// <summary>
-        /// Start mDNS discovery on the specified port
+        /// Start mDNS discovery, advertising the specified receiver port
         /// </summary>
-        public bool StartDiscovery(ushort port = 42424)
+        /// <param name="receiverPort">The port that the file receiver is listening on</param>
+        public bool StartDiscovery(ushort receiverPort)
         {
-            int result = NativeBindings.voidwarp_start_discovery(_handle, port);
+            int result = NativeBindings.voidwarp_start_discovery(_handle, receiverPort);
             IsDiscovering = result == 0;
+            
+            // Auto-add localhost for USB/ADB forwarding scenarios
+            if (IsDiscovering)
+            {
+                AddManualPeer("usb-android", "USB/Localhost", "127.0.0.1", receiverPort);
+            }
+            
             return IsDiscovering;
+        }
+
+        /// <summary>
+        /// Manually add a peer (e.g. for USB connections)
+        /// </summary>
+        public void AddManualPeer(string id, string name, string ip, ushort port)
+        {
+            NativeBindings.voidwarp_add_manual_peer(_handle, id, name, ip, port);
         }
 
         /// <summary>

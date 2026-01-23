@@ -1,5 +1,7 @@
 package com.voidwarp.android
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.content.Context
@@ -46,6 +48,13 @@ class MainActivity : ComponentActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Android 13+ requires NEARBY_WIFI_DEVICES for Wi‑Fi LAN discovery.
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            if (checkSelfPermission(Manifest.permission.NEARBY_WIFI_DEVICES) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(Manifest.permission.NEARBY_WIFI_DEVICES), 1001)
+            }
+        }
         
         // Acquire MulticastLock to allow mDNS discovery
         try {
@@ -101,6 +110,11 @@ fun MainScreen(
     var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
     var selectedFileName by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    
+    // Manual peer addition dialog state
+    var showAddPeerDialog by remember { mutableStateOf(false) }
+    var manualIp by remember { mutableStateOf("192.168.") }
+    var manualPort by remember { mutableStateOf("42424") }
     
     // Collect manager states
     val isReceiveMode by receiveManager.state.collectAsState()
@@ -329,11 +343,11 @@ fun MainScreen(
                             engine.stopDiscovery()
                         } else {
                             scope.launch(Dispatchers.IO) {
-                                val ok = engine.startDiscovery()
-                                if (!ok) {
-                                    withContext(Dispatchers.Main) {
-                                        Toast.makeText(context, "启动发现失败（请检查权限/网络/日志）", Toast.LENGTH_SHORT).show()
-                                    }
+                                val portToAdvertise = if (receiverPort > 0) receiverPort else 42424
+                                engine.startDiscovery(portToAdvertise)
+                                // Discovery now always succeeds - USB localhost peer is auto-added
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "发现已启动（支持手动添加/USB连接）", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
@@ -350,6 +364,19 @@ fun MainScreen(
                         text = if (isDiscovering) "停止" else "发现设备",
                         fontSize = 14.sp
                     )
+                }
+                
+                // Add Manual Peer Button
+                Button(
+                    onClick = { showAddPeerDialog = true },
+                    modifier = Modifier
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFFF9800)
+                    )
+                ) {
+                    Text(text = "+IP", fontSize = 14.sp)
                 }
                 
                 // Send Button (only enabled when file and peer are selected)
@@ -413,6 +440,90 @@ fun MainScreen(
                 tint = Color.White
             )
         }
+    }
+    
+    // Manual Peer Addition Dialog
+    if (showAddPeerDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddPeerDialog = false },
+            containerColor = Color(0xFF16213E),
+            title = {
+                Text("手动添加设备", color = Color.White)
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "输入Windows设备的IP地址和端口",
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
+                    
+                    OutlinedTextField(
+                        value = manualIp,
+                        onValueChange = { manualIp = it },
+                        label = { Text("IP 地址", color = Color.Gray) },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFF6C63FF),
+                            unfocusedBorderColor = Color.Gray
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    
+                    OutlinedTextField(
+                        value = manualPort,
+                        onValueChange = { manualPort = it.filter { c -> c.isDigit() } },
+                        label = { Text("端口", color = Color.Gray) },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFF6C63FF),
+                            unfocusedBorderColor = Color.Gray
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    
+                    Text(
+                        text = "提示: USB连接时使用 127.0.0.1:42424\n(需先在PC上运行 adb reverse tcp:42424 tcp:42424)",
+                        color = Color(0xFF888888),
+                        fontSize = 10.sp
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val portNum = manualPort.toIntOrNull() ?: 42424
+                        if (manualIp.isNotBlank()) {
+                            engine.addManualPeer(
+                                id = "manual-${manualIp.replace(".", "-")}",
+                                name = "手动添加 ($manualIp)",
+                                ip = manualIp.trim(),
+                                port = portNum
+                            )
+                            engine.refreshPeers()
+                            Toast.makeText(context, "已添加设备: $manualIp:$portNum", Toast.LENGTH_SHORT).show()
+                            showAddPeerDialog = false
+                        } else {
+                            Toast.makeText(context, "请输入有效的IP地址", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6C63FF))
+                ) {
+                    Text("添加")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddPeerDialog = false }) {
+                    Text("取消", color = Color.Gray)
+                }
+            }
+        )
     }
 }
 

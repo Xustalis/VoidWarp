@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using VoidWarp.Windows.Native;
@@ -8,7 +7,7 @@ using VoidWarp.Windows.Native;
 namespace VoidWarp.Windows.Core
 {
     /// <summary>
-    /// Manages file transfer operations using the native core
+    /// Manages file transfer operations using TCP sender
     /// </summary>
     public class TransferManager : IDisposable
     {
@@ -24,7 +23,7 @@ namespace VoidWarp.Windows.Core
         public event Action<bool, string?>? TransferCompleted;
 
         /// <summary>
-        /// Start sending a file to the target peer
+        /// Start sending a file to the target peer using TCP
         /// </summary>
         public async Task SendFileAsync(string filePath, DiscoveredPeer target, CancellationToken cancellationToken = default)
         {
@@ -34,24 +33,72 @@ namespace VoidWarp.Windows.Core
             if (!File.Exists(filePath))
                 throw new FileNotFoundException("File not found", filePath);
 
-            _senderHandle = NativeBindings.voidwarp_create_sender(filePath);
+            // Use TCP Sender instead of chunk-based sender
+            _senderHandle = NativeBindings.voidwarp_tcp_sender_create(filePath);
             if (_senderHandle == IntPtr.Zero)
-                throw new InvalidOperationException("Failed to create file sender");
+                throw new InvalidOperationException("Failed to create TCP file sender");
 
-            FileName = NativeBindings.GetStringAndFree(NativeBindings.voidwarp_sender_get_name(_senderHandle));
-            FileSize = NativeBindings.voidwarp_sender_get_size(_senderHandle);
+            FileName = Path.GetFileName(filePath);
+            FileSize = NativeBindings.voidwarp_tcp_sender_get_file_size(_senderHandle);
             IsTransferring = true;
 
             _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
             try
             {
-                await Task.Run(() => TransferLoop(target), _cts.Token);
-                TransferCompleted?.Invoke(true, null);
+                // Start progress monitoring task
+                var progressTask = MonitorProgressAsync(_cts.Token);
+
+                // Execute TCP transfer (blocking call, run on background thread)
+                int result = await Task.Run(() =>
+                    NativeBindings.voidwarp_tcp_sender_start(
+                        _senderHandle,
+                        target.IpAddress,
+                        target.Port,
+                        Environment.MachineName
+                    ), _cts.Token);
+
+                // Stop progress monitoring
+                _cts.Cancel();
+                try { await progressTask; } catch (OperationCanceledException) { }
+
+                // Handle result
+                switch (result)
+                {
+                    case 0: // Success
+                        ProgressChanged?.Invoke(new TransferProgressInfo
+                        {
+                            BytesTransferred = FileSize,
+                            TotalBytes = FileSize,
+                            Percentage = 100,
+                            SpeedMbps = 0,
+                            State = TransferState.Completed
+                        });
+                        TransferCompleted?.Invoke(true, null);
+                        break;
+                    case 1: // Rejected
+                        TransferCompleted?.Invoke(false, "对方拒绝了传输");
+                        break;
+                    case 2: // ChecksumMismatch
+                        TransferCompleted?.Invoke(false, "校验和不匹配");
+                        break;
+                    case 3: // ConnectionFailed
+                        TransferCompleted?.Invoke(false, "连接失败");
+                        break;
+                    case 4: // Timeout
+                        TransferCompleted?.Invoke(false, "传输超时");
+                        break;
+                    case 5: // Cancelled
+                        TransferCompleted?.Invoke(false, "已取消");
+                        break;
+                    default:
+                        TransferCompleted?.Invoke(false, $"未知错误: {result}");
+                        break;
+                }
             }
             catch (OperationCanceledException)
             {
-                NativeBindings.voidwarp_sender_cancel(_senderHandle);
+                NativeBindings.voidwarp_tcp_sender_cancel(_senderHandle);
                 TransferCompleted?.Invoke(false, "Transfer cancelled");
             }
             catch (Exception ex)
@@ -64,57 +111,38 @@ namespace VoidWarp.Windows.Core
             }
         }
 
-        private void TransferLoop(DiscoveredPeer target)
+        private async Task MonitorProgressAsync(CancellationToken token)
         {
-            DateTime startTime = DateTime.Now;
-            ulong lastBytes = 0;
-            DateTime lastSpeedCheck = DateTime.Now;
-
-            while (!_cts!.Token.IsCancellationRequested)
+            try
             {
-                var chunk = NativeBindings.voidwarp_sender_read_chunk(_senderHandle);
-                
-                if (chunk.Data == IntPtr.Zero || chunk.Len == 0)
+                while (!token.IsCancellationRequested && IsTransferring)
                 {
-                    // No more data
-                    break;
-                }
-
-                // In a real implementation, we would send this chunk over the network
-                // For now, we just simulate the transfer with a small delay
-                Thread.Sleep(1); // Simulate network latency
-
-                NativeBindings.voidwarp_free_chunk(chunk);
-
-                // Report progress
-                var progress = NativeBindings.voidwarp_sender_get_progress(_senderHandle);
-                
-                // Calculate speed
-                double elapsed = (DateTime.Now - lastSpeedCheck).TotalSeconds;
-                if (elapsed >= 0.5)
-                {
-                    ulong bytesDelta = progress.BytesTransferred - lastBytes;
-                    float speedMbps = (float)(bytesDelta / elapsed / 1024 / 1024);
-                    lastBytes = progress.BytesTransferred;
-                    lastSpeedCheck = DateTime.Now;
-
+                    float progress = NativeBindings.voidwarp_tcp_sender_get_progress(_senderHandle);
                     ProgressChanged?.Invoke(new TransferProgressInfo
                     {
-                        BytesTransferred = progress.BytesTransferred,
-                        TotalBytes = progress.TotalBytes,
-                        Percentage = progress.Percentage,
-                        SpeedMbps = speedMbps,
-                        State = (TransferState)progress.State
+                        BytesTransferred = (ulong)(progress / 100.0 * FileSize),
+                        TotalBytes = FileSize,
+                        Percentage = progress,
+                        SpeedMbps = 0, // TCP sender calculates internally
+                        State = TransferState.Transferring
                     });
-                }
 
-                if (chunk.IsLast)
-                    break;
+                    if (progress >= 100f) break;
+                    await Task.Delay(200, token);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when transfer completes
             }
         }
 
         public void CancelTransfer()
         {
+            if (_senderHandle != IntPtr.Zero)
+            {
+                NativeBindings.voidwarp_tcp_sender_cancel(_senderHandle);
+            }
             _cts?.Cancel();
         }
 
@@ -122,7 +150,7 @@ namespace VoidWarp.Windows.Core
         {
             if (_senderHandle != IntPtr.Zero)
             {
-                NativeBindings.voidwarp_destroy_sender(_senderHandle);
+                NativeBindings.voidwarp_tcp_sender_destroy(_senderHandle);
                 _senderHandle = IntPtr.Zero;
             }
             IsTransferring = false;

@@ -6,7 +6,7 @@ use std::net::{SocketAddr, UdpSocket};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// Magic bytes for VoidWarp heartbeat packets
 const HEARTBEAT_MAGIC: [u8; 2] = [0x56, 0x57]; // "VW"

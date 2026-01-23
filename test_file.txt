@@ -1,0 +1,4 @@
+VoidWarp Connection Test File
+Created: 2026-01-22
+This is a small test file to verify cross-platform connection.
+Size: ~200 bytes

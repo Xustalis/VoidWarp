@@ -87,6 +87,8 @@
                 <!-- Actions -->
                 <StackPanel Grid.Row="3" Margin="0,10,0,0">
                     <Button x:Name="DiscoverBtn" Content="开始发现设备" Style="{StaticResource ModernButton}" Click="DiscoverBtn_Click"/>
+                    <Button x:Name="AddPeerBtn" Content="+ 手动添加 IP" Style="{StaticResource ModernButton}" 
+                            Background="#FF9800" Margin="0,8,0,0" Click="AddPeerBtn_Click"/>
                 </StackPanel>
             </Grid>
         </Border>

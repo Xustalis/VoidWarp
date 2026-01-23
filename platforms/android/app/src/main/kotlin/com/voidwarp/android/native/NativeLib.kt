@@ -38,6 +38,7 @@ object NativeLib {
     
     external fun voidwarpStartDiscovery(handle: Long, port: Int): Int
     external fun voidwarpStopDiscovery(handle: Long)
+    external fun voidwarpAddManualPeer(handle: Long, deviceId: String, deviceName: String, ipAddress: String, port: Int): Int
     external fun voidwarpGetPeers(handle: Long): Array<PeerInfo>?
     
     // ========================================================================

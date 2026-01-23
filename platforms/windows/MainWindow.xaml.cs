@@ -223,9 +223,11 @@ namespace VoidWarp.Windows
 
         private void StartDiscovery()
         {
-            if (_engine == null) return;
+            if (_engine == null || _receiveManager == null) return;
 
-            if (_engine.StartDiscovery(42424))
+            // Use the receiver's actual port for discovery registration
+            // This ensures peers connect to the correct port for file transfers
+            if (_engine.StartDiscovery(_receiveManager.Port))
             {
                 StatusIndicator.Fill = new SolidColorBrush(Color.FromRgb(0x6c, 0x63, 0xff));
                 StatusText.Text = "正在发现设备...";
@@ -253,6 +255,43 @@ namespace VoidWarp.Windows
             StatusIndicator.Fill = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88));
             StatusText.Text = "发现已停止";
             DiscoverBtn.Content = "开始发现设备";
+        }
+
+        private void AddPeerBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (_engine == null) return;
+
+            // Simple input dialog for IP address
+            string? ipInput = Microsoft.VisualBasic.Interaction.InputBox(
+                "请输入设备的 IP 地址\n\n例如: 192.168.0.104",
+                "手动添加设备",
+                "192.168.0."
+            );
+
+            if (string.IsNullOrWhiteSpace(ipInput)) return;
+
+            // Ask for port
+            string? portInput = Microsoft.VisualBasic.Interaction.InputBox(
+                "请输入端口号\n\n默认: 42424",
+                "端口",
+                "42424"
+            );
+
+            if (!ushort.TryParse(portInput, out ushort port))
+            {
+                port = 42424;
+            }
+
+            // Add the manual peer
+            string peerId = $"manual-{ipInput.Replace(".", "-")}";
+            string peerName = $"手动添加 ({ipInput})";
+            
+            _engine.AddManualPeer(peerId, peerName, ipInput.Trim(), port);
+            
+            // Refresh the peer list
+            RefreshPeers(null, EventArgs.Empty);
+            
+            MessageBox.Show($"已添加设备: {ipInput}:{port}", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void RefreshPeers(object? sender, EventArgs e)

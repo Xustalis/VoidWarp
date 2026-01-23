@@ -1,0 +1,6 @@
+G:\project\VoidWarp\platforms\windows\bin\Release\net8.0-windows\win-x64\publish\VoidWarp.Windows.exe
+G:\project\VoidWarp\platforms\windows\bin\Release\net8.0-windows\win-x64\publish\voidwarp_core.dll
+G:\project\VoidWarp\platforms\windows\bin\Release\net8.0-windows\win-x64\publish\VoidWarp.Windows.dll
+G:\project\VoidWarp\platforms\windows\bin\Release\net8.0-windows\win-x64\publish\VoidWarp.Windows.deps.json
+G:\project\VoidWarp\platforms\windows\bin\Release\net8.0-windows\win-x64\publish\VoidWarp.Windows.runtimeconfig.json
+G:\project\VoidWarp\platforms\windows\bin\Release\net8.0-windows\win-x64\publish\VoidWarp.Windows.pdb

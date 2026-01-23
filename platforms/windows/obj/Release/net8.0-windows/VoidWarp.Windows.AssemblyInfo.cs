@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("VoidWarp.Windows")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5d111daa4bd92d2bdb60f5e643cbb368aba8ce89")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f2a71a1d31b26b017a9612d4017bdff645759ab8")]
 [assembly: System.Reflection.AssemblyProductAttribute("VoidWarp.Windows")]
 [assembly: System.Reflection.AssemblyTitleAttribute("VoidWarp.Windows")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
