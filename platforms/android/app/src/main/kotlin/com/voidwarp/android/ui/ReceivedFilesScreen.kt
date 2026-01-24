@@ -45,16 +45,19 @@ fun ReceivedFilesScreen(
     
     // Function to refresh file list
     fun refreshFiles() {
-        // Must match path in MainActivity
         val voidWarpDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir
         
-        if (voidWarpDir.exists() && voidWarpDir.isDirectory) {
-            files = voidWarpDir.listFiles()
-                ?.filter { it.isFile }
-                ?.sortedByDescending { it.lastModified() }
-                ?: emptyList()
-        } else {
-            files = emptyList()
+        files = try {
+            if (voidWarpDir.exists() && voidWarpDir.isDirectory) {
+                voidWarpDir.listFiles()
+                    ?.filter { it.isFile }
+                    ?.sortedByDescending { it.lastModified() }
+                    ?: emptyList()
+            } else {
+                emptyList()
+            }
+        } catch (_: Exception) {
+            emptyList()
         }
     }
     
@@ -98,7 +101,7 @@ fun ReceivedFilesScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "暂无接收文件\n(保存在 Downloads/VoidWarp)",
+                    text = "暂无接收文件\n(保存在应用下载目录)",
                     color = Color.Gray,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
@@ -175,6 +178,6 @@ fun formatFileSize(size: Long): String {
         size >= 1024 * 1024 * 1024 -> "%.2f GB".format(size / 1024.0 / 1024.0 / 1024.0)
         size >= 1024 * 1024 -> "%.1f MB".format(size / 1024.0 / 1024.0)
         size >= 1024 -> "%.1f KB".format(size / 1024.0)
-        else -> "$size B"
+        else -> "$size 字节"
     }
 }

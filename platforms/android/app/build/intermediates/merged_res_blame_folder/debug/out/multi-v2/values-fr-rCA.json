@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.voidwarp.android.app-mergeDebugResources-43:/values-fr-rCA/values-fr-rCA.xml",
+            "outputFile": "com.voidwarp.android.app-mergeDebugResources-44:/values-fr-rCA/values-fr-rCA.xml",
             "map": [
                 {
                     "source": "C:\\Users\\X\\.gradle\\caches\\8.9\\transforms\\53355124fb3193453da94fc98ab8f45e\\transformed\\ui-release\\res\\values-fr-rCA\\values-fr-rCA.xml",

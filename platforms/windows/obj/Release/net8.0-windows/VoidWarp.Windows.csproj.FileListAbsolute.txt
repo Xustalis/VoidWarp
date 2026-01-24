@@ -1,4 +1,3 @@
-G:\project\VoidWarp\platforms\windows\bin\Release\net8.0-windows\voidwarp_core.dll
 G:\project\VoidWarp\platforms\windows\bin\Release\net8.0-windows\VoidWarp.Windows.exe
 G:\project\VoidWarp\platforms\windows\bin\Release\net8.0-windows\VoidWarp.Windows.deps.json
 G:\project\VoidWarp\platforms\windows\bin\Release\net8.0-windows\VoidWarp.Windows.runtimeconfig.json
@@ -19,3 +18,4 @@ G:\project\VoidWarp\platforms\windows\obj\Release\net8.0-windows\VoidWarp.Window
 G:\project\VoidWarp\platforms\windows\obj\Release\net8.0-windows\VoidWarp.Windows.genruntimeconfig.cache
 G:\project\VoidWarp\platforms\windows\obj\Release\net8.0-windows\ref\VoidWarp.Windows.dll
 G:\project\VoidWarp\platforms\windows\obj\Release\net8.0-windows\VoidWarp.Windows.sourcelink.json
+G:\project\VoidWarp\platforms\windows\bin\Release\net8.0-windows\voidwarp_core.dll

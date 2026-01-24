@@ -135,8 +135,8 @@ class TransferManager(private val context: Context) {
                     onComplete(false, "校验和不匹配")
                 }
                 3 -> {
-                    _statusMessage.value = "连接失败 (尝试了所有IP)"
-                    onComplete(false, "连接失败: 无法连接到设备 (${ips.size} IPs tried)")
+                    _statusMessage.value = "连接失败（已尝试全部IP）"
+                    onComplete(false, "连接失败：无法连接到设备（已尝试 ${ips.size} 个IP）")
                 }
                 4 -> {
                     _statusMessage.value = "传输超时"
@@ -152,10 +152,13 @@ class TransferManager(private val context: Context) {
                 }
             }
             
-        } catch (e: Exception) {
-            _statusMessage.value = "发送失败: ${e.message}"
-            onComplete(false, e.message)
+        } catch (t: Throwable) {
+            val message = t.message ?: "未知错误"
+            _statusMessage.value = "发送失败：$message"
+            onComplete(false, message)
         } finally {
+            transferJob?.cancel()
+            transferJob = null
             cleanup()
             try { tempFile?.delete() } catch (_: Exception) {}
             _isTransferring.value = false
@@ -166,10 +169,14 @@ class TransferManager(private val context: Context) {
      * Calculate checksum for a file
      */
     suspend fun calculateChecksum(fileUri: Uri): String? = withContext(Dispatchers.IO) {
-        val tempFile = copyUriToTempFile(fileUri) ?: return@withContext null
-        val checksum = NativeLib.voidwarpCalculateFileChecksum(tempFile.absolutePath)
-        tempFile.delete()
-        checksum
+        try {
+            val tempFile = copyUriToTempFile(fileUri) ?: return@withContext null
+            val checksum = NativeLib.voidwarpCalculateFileChecksum(tempFile.absolutePath)
+            try { tempFile.delete() } catch (_: Exception) {}
+            checksum
+        } catch (_: Throwable) {
+            null
+        }
     }
     
     /**
@@ -186,8 +193,12 @@ class TransferManager(private val context: Context) {
     
     private fun cleanup() {
         if (senderHandle != 0L) {
-            NativeLib.voidwarpTcpSenderDestroy(senderHandle)
-            senderHandle = 0
+            try {
+                NativeLib.voidwarpTcpSenderDestroy(senderHandle)
+            } catch (_: Throwable) {
+            } finally {
+                senderHandle = 0
+            }
         }
     }
     
@@ -196,14 +207,15 @@ class TransferManager(private val context: Context) {
             val fileName = getFileName(uri) ?: "temp_transfer"
             val tempFile = File(context.cacheDir, fileName)
             
-            context.contentResolver.openInputStream(uri)?.use { input ->
+            val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+            inputStream.use { input ->
                 FileOutputStream(tempFile).use { output ->
-                    input.copyTo(output, bufferSize = 1024 * 1024) // 1MB buffer
+                    input.copyTo(output, bufferSize = 1024 * 1024)
                 }
             }
             
             tempFile
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }

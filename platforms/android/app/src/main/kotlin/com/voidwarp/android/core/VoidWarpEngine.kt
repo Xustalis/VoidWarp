@@ -12,9 +12,17 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 class VoidWarpEngine(deviceName: String) : AutoCloseable {
     
-    private var handle: Long = NativeLib.voidwarpInit(deviceName)
+    private var handle: Long = try {
+        NativeLib.voidwarpInit(deviceName)
+    } catch (_: Throwable) {
+        0L
+    }
     
-    val deviceId: String = NativeLib.voidwarpGetDeviceId(handle) ?: "unknown"
+    val deviceId: String = try {
+        if (handle != 0L) NativeLib.voidwarpGetDeviceId(handle) ?: "未知" else "未知"
+    } catch (_: Throwable) {
+        "未知"
+    }
     
     private val _isDiscovering = MutableStateFlow(false)
     val isDiscovering: StateFlow<Boolean> = _isDiscovering.asStateFlow()
@@ -23,36 +31,32 @@ class VoidWarpEngine(deviceName: String) : AutoCloseable {
     val peers: StateFlow<List<DiscoveredPeer>> = _peers.asStateFlow()
     
     fun generatePairingCode(): String {
-        return NativeLib.voidwarpGeneratePairingCode() ?: "000-000"
+        return try {
+            NativeLib.voidwarpGeneratePairingCode() ?: "000-000"
+        } catch (_: Throwable) {
+            "000-000"
+        }
     }
     
     suspend fun startDiscovery(receiverPort: Int = 42424): Boolean = withContext(Dispatchers.IO) {
         try {
+            if (handle == 0L) {
+                _isDiscovering.value = true
+                return@withContext true
+            }
             android.util.Log.d("VoidWarpEngine", "Starting discovery with port: $receiverPort")
             
-            // Call native discovery - now always returns 0 (success)
-            val result = NativeLib.voidwarpStartDiscovery(handle, receiverPort)
+            // Get valid IP address for mDNS
+            val ipAddress = getWifiIpAddress()
+            android.util.Log.i("VoidWarpEngine", "Detected WiFi IP: $ipAddress")
+            
+            // Call native discovery with explicit IP
+            val result = NativeLib.voidwarpStartDiscovery(handle, ipAddress, receiverPort)
             android.util.Log.d("VoidWarpEngine", "Native discovery returned: $result")
             
             // Discovery now always succeeds (Rust returns 0 even in fallback mode)
             // Set discovering state to true
             _isDiscovering.value = true
-
-            // Always add USB localhost peer for ADB port forwarding scenarios
-            // When connected via USB with `adb reverse tcp:X tcp:X`, Android can reach
-            // Windows at 127.0.0.1:X
-            try {
-                android.util.Log.d("VoidWarpEngine", "Adding USB localhost peer (127.0.0.1:42424)")
-                NativeLib.voidwarpAddManualPeer(
-                    handle,
-                    "usb-windows",
-                    "USB/Windows (localhost)",
-                    "127.0.0.1",
-                    42424  // Standard port for ADB reverse forwarding
-                )
-            } catch (e: Throwable) {
-                android.util.Log.w("VoidWarpEngine", "Failed to add USB peer: ${e.message}")
-            }
 
             true
         } catch (t: Throwable) {
@@ -63,8 +67,49 @@ class VoidWarpEngine(deviceName: String) : AutoCloseable {
         }
     }
     
+    private fun getWifiIpAddress(): String {
+        try {
+             val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
+             while (interfaces.hasMoreElements()) {
+                 val networkInterface = interfaces.nextElement()
+                 // Skip loopback and down interfaces
+                 if (networkInterface.isLoopback || !networkInterface.isUp) continue
+                 
+                 // Check for "wlan" (WiFi), "ap" (Access Point/Hotspot), "eth" (Ethernet)
+                 val name = networkInterface.name.lowercase()
+                 val isPrioritized = name.contains("wlan") || name.contains("ap") || name.contains("eth") || name.contains("rndis") // USB Tethering
+                 
+                 // If not a prioritized interface, we might still use it if it has a valid local IP (192.168...)
+                 
+                 val addresses = networkInterface.inetAddresses
+                 while (addresses.hasMoreElements()) {
+                     val addr = addresses.nextElement()
+                     
+                     // We only want IPv4 for now
+                     if (!addr.isLoopbackAddress && addr is java.net.Inet4Address) {
+                         val ip = addr.hostAddress ?: continue
+                         
+                         // Prioritize standard local prefixes
+                         if (ip.startsWith("192.168.") || ip.startsWith("10.") || ip.startsWith("172.")) {
+                             if (isPrioritized) return ip // Perfect match
+                         }
+                         
+                         // If we didn't return yet, keep searching for a better one, 
+                         // but effectively we might return the first valid IPv4 if loop finishes.
+                         // For simplicity, let's return the first prioritized one we found.
+                         return ip
+                     }
+                 }
+             }
+        } catch (e: Exception) {
+            android.util.Log.w("VoidWarpEngine", "Failed to get IP address: ${e.message}")
+        }
+        return "127.0.0.1"
+    }
+    
     fun addManualPeer(id: String, name: String, ip: String, port: Int): Boolean {
         return try {
+            if (handle == 0L) return false
             android.util.Log.d("VoidWarpEngine", "Adding manual peer: $name at $ip:$port")
             NativeLib.voidwarpAddManualPeer(handle, id, name, ip, port)
             refreshPeers() // Force refresh to show the new peer
@@ -78,7 +123,9 @@ class VoidWarpEngine(deviceName: String) : AutoCloseable {
     
     fun stopDiscovery() {
         try {
-            NativeLib.voidwarpStopDiscovery(handle)
+            if (handle != 0L) {
+                NativeLib.voidwarpStopDiscovery(handle)
+            }
         } catch (_: Throwable) {
             // ignore
         } finally {
@@ -88,12 +135,16 @@ class VoidWarpEngine(deviceName: String) : AutoCloseable {
     
     fun refreshPeers() {
         try {
+            if (handle == 0L) {
+                _peers.value = emptyList()
+                return
+            }
             val nativePeers = NativeLib.voidwarpGetPeers(handle) ?: emptyArray()
             _peers.value = nativePeers.map { 
                 DiscoveredPeer(
                     deviceId = it.deviceId,
                     deviceName = it.deviceName,
-                    ipAddress = it.ipAddress,
+                    ipAddress = it.ipAddress, // This now contains "ip1,ip2,..."
                     port = it.port
                 )
             }
@@ -102,10 +153,34 @@ class VoidWarpEngine(deviceName: String) : AutoCloseable {
         }
     }
     
+    suspend fun testConnection(peer: DiscoveredPeer): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // Try all IPs
+            val ips = peer.ipAddress.split(",").filter { it.isNotBlank() }
+            for (ip in ips) {
+                android.util.Log.d("VoidWarpEngine", "Testing connection to $ip:${peer.port}")
+                val result = NativeLib.voidwarpTransportPing(ip.trim(), peer.port)
+                if (result) {
+                    android.util.Log.d("VoidWarpEngine", "Connection test passed for $ip")
+                    return@withContext true
+                }
+            }
+            android.util.Log.w("VoidWarpEngine", "Connection test failed for all IPs of ${peer.deviceName}")
+            false
+        } catch (t: Throwable) {
+            android.util.Log.e("VoidWarpEngine", "Connection test error", t)
+            false
+        }
+    }
+
     override fun close() {
         if (handle != 0L) {
-            NativeLib.voidwarpDestroy(handle)
-            handle = 0L
+            try {
+                NativeLib.voidwarpDestroy(handle)
+            } catch (_: Throwable) {
+            } finally {
+                handle = 0L
+            }
         }
     }
 }
@@ -113,8 +188,19 @@ class VoidWarpEngine(deviceName: String) : AutoCloseable {
 data class DiscoveredPeer(
     val deviceId: String,
     val deviceName: String,
-    val ipAddress: String,
+    val ipAddress: String, // Can be comma-separated list
     val port: Int
 ) {
-    val displayName: String get() = "$deviceName ($ipAddress)"
+    val displayName: String get() {
+        // Show first IP or "Multiple IPs"
+        val ips = ipAddress.split(",")
+        return if (ips.size > 1) {
+            "$deviceName (${ips[0]}...)"
+        } else {
+            "$deviceName ($ipAddress)"
+        }
+    }
+
+    // Heuristics to get the "best" IP for display/usage if needed (though engine now handles multi-IP)
+    val bestIp: String get() = ipAddress.split(",").firstOrNull()?.trim() ?: ""
 }

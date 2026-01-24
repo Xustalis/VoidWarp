@@ -1,7 +1,4 @@
-using System;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 using VoidWarp.Windows.Native;
 
 namespace VoidWarp.Windows.Core
@@ -78,6 +75,7 @@ namespace VoidWarp.Windows.Core
             if (_receiverHandle == IntPtr.Zero) return;
 
             NativeBindings.voidwarp_receiver_start(_receiverHandle);
+            NativeBindings.voidwarp_transport_start_server(Port);
             StartPolling();
         }
 
@@ -124,7 +122,11 @@ namespace VoidWarp.Windows.Core
         public void RejectTransfer()
         {
             if (_receiverHandle == IntPtr.Zero) return;
-            NativeBindings.voidwarp_receiver_reject(_receiverHandle);
+            var result = NativeBindings.voidwarp_receiver_reject(_receiverHandle);
+            if (result != 0)
+            {
+                TransferCompleted?.Invoke(false, "Reject failed");
+            }
         }
 
         /// <summary>
@@ -207,6 +209,7 @@ namespace VoidWarp.Windows.Core
                     _receiverHandle = IntPtr.Zero;
                 }
                 _disposed = true;
+                GC.SuppressFinalize(this);
             }
         }
     }

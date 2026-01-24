@@ -1,6 +1,4 @@
-﻿using System;
 using System.Collections.ObjectModel;
-using System.Linq;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -15,7 +13,7 @@ namespace VoidWarp.Windows
         private TransferManager? _transferManager;
         private ReceiveManager? _receiveManager;
         private DispatcherTimer? _refreshTimer;
-        private ObservableCollection<DiscoveredPeer> _peers = new();
+        private readonly ObservableCollection<DiscoveredPeer> _peers = [];
         private PendingTransferInfo? _pendingTransfer;
 
         public MainWindow()
@@ -43,6 +41,14 @@ namespace VoidWarp.Windows
                 _receiveManager.TransferCompleted += OnReceiveCompleted;
                 
                 DeviceIdText.Text = $"设备 ID: {_engine.DeviceId[..8]}...";
+                
+                // Show Network Diagnostics
+                var host = System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName());
+                var ips = host.AddressList
+                    .Where(ip => ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork) // IPv4
+                    .Select(ip => ip.ToString());
+                
+                NetworkDebugText.Text = $"Diagnostics: My IPs: {string.Join(", ", ips)} | Port: {_receiveManager.Port}";
             }
             catch (Exception ex)
             {
@@ -257,41 +263,46 @@ namespace VoidWarp.Windows
             DiscoverBtn.Content = "开始发现设备";
         }
 
-        private void AddPeerBtn_Click(object sender, RoutedEventArgs e)
+        private void ManualAddBtn_Click(object sender, RoutedEventArgs e)
         {
             if (_engine == null) return;
 
-            // Simple input dialog for IP address
-            string? ipInput = Microsoft.VisualBasic.Interaction.InputBox(
-                "请输入设备的 IP 地址\n\n例如: 192.168.0.104",
-                "手动添加设备",
-                "192.168.0."
-            );
-
-            if (string.IsNullOrWhiteSpace(ipInput)) return;
-
-            // Ask for port
-            string? portInput = Microsoft.VisualBasic.Interaction.InputBox(
-                "请输入端口号\n\n默认: 42424",
-                "端口",
-                "42424"
-            );
-
-            if (!ushort.TryParse(portInput, out ushort port))
+            string ipInput = ManualIpBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(ipInput))
             {
-                port = 42424;
+                MessageBox.Show("请输入有效的 IP 地址", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
             }
+
+            // Default port
+            ushort port = 42424;
 
             // Add the manual peer
             string peerId = $"manual-{ipInput.Replace(".", "-")}";
             string peerName = $"手动添加 ({ipInput})";
             
-            _engine.AddManualPeer(peerId, peerName, ipInput.Trim(), port);
+            _engine.AddManualPeer(peerId, peerName, ipInput, port);
             
             // Refresh the peer list
             RefreshPeers(null, EventArgs.Empty);
             
             MessageBox.Show($"已添加设备: {ipInput}:{port}", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void OpenDownloadsBtn_Click(object sender, RoutedEventArgs e)
+        {
+            string downloadPath = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), 
+                "Downloads", 
+                "VoidWarp"
+            );
+            
+            if (!System.IO.Directory.Exists(downloadPath))
+            {
+                System.IO.Directory.CreateDirectory(downloadPath);
+            }
+            
+            System.Diagnostics.Process.Start("explorer.exe", downloadPath);
         }
 
         private void RefreshPeers(object? sender, EventArgs e)

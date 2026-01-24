@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.voidwarp.android.app-mergeDebugResources-43:/values-lt/values-lt.xml",
+            "outputFile": "com.voidwarp.android.app-mergeDebugResources-44:/values-lt/values-lt.xml",
             "map": [
                 {
                     "source": "C:\\Users\\X\\.gradle\\caches\\8.9\\transforms\\2361833ef1ae58bc59112fc97bf2f341\\transformed\\foundation-release\\res\\values-lt\\values-lt.xml",

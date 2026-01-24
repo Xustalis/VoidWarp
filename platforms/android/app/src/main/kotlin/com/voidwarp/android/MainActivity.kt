@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -125,6 +126,7 @@ class MainActivity : ComponentActivity() {
     }
     
     override fun onDestroy() {
+        transferManager?.cancel()
         receiveManager?.close()
         engine?.close()
         try { multicastLock?.release() } catch (_: Throwable) {}
@@ -163,7 +165,6 @@ fun MainScreen(
     ) { uri: Uri? ->
         uri?.let {
             selectedFileUri = it
-            // Get file name from URI
             val cursor = context.contentResolver.query(it, null, null, null, null)
             cursor?.use { c ->
                 if (c.moveToFirst()) {
@@ -173,7 +174,15 @@ fun MainScreen(
                     }
                 }
             }
-            // Status now handled by TransferManager
+            if (selectedFileName == null) {
+                selectedFileName = it.lastPathSegment ?: "未知文件"
+            }
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    it,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (_: SecurityException) {}
         }
     }
     
@@ -201,7 +210,7 @@ fun MainScreen(
             ) {
                 Column {
                     Text(
-                        text = "VOID WARP",
+                        text = "虚空传送",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         color = AppColors.Primary,
@@ -209,7 +218,7 @@ fun MainScreen(
                     )
                     
                     Text(
-                        text = "ID: ${engine.deviceId.take(8).uppercase()}",
+                        text = "设备ID: ${engine.deviceId.take(8).uppercase()}",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color.Gray,
@@ -227,7 +236,7 @@ fun MainScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Description,
-                        contentDescription = "Received Files",
+                        contentDescription = "已接收文件",
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
@@ -266,12 +275,12 @@ fun MainScreen(
                     
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (isReceiveMode != ReceiverState.IDLE) "Ready to Receive" else "Receive Mode Off",
+                            text = if (isReceiveMode != ReceiverState.IDLE) "接收准备就绪" else "接收模式已关闭",
                             fontWeight = FontWeight.SemiBold,
                             color = Color.White
                         )
                         Text(
-                            text = if (isReceiveMode != ReceiverState.IDLE) "Visible on port $receiverPort" else "Tap switch to enable",
+                            text = if (isReceiveMode != ReceiverState.IDLE) "端口 $receiverPort 可见" else "点击开关启用",
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
@@ -300,24 +309,23 @@ fun MainScreen(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = "DIAGNOSTICS",
+                        text = "诊断信息",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.Gray,
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
                     
-                    // Show all IPs
                     val ips = getAllIpAddresses()
                     Text(
-                        text = "My IPs: ${ips.joinToString(", ")}",
+                        text = "本机IP: ${if (ips.isEmpty()) "无" else ips.joinToString(", ")}",
                         fontSize = 11.sp,
                         color = Color.White,
                         lineHeight = 16.sp
                     )
                     
                     Text(
-                        text = "Discovery: ${if(isDiscovering) "Active" else "Idle"} | Listening: $receiverPort",
+                        text = "发现: ${if(isDiscovering) "进行中" else "空闲"} | 监听: $receiverPort",
                         fontSize = 11.sp,
                         color = AppColors.Primary
                     )
@@ -329,7 +337,7 @@ fun MainScreen(
             // Radar / Device List Section
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "NEARBY DEVICES",
+                    text = "附近设备",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Gray,
@@ -364,14 +372,14 @@ fun MainScreen(
                             )
                             
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Send, // Placeholder for Radar
-                                contentDescription = "Scanning",
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "正在扫描",
                                 tint = AppColors.Primary,
                                 modifier = Modifier.size(48.dp)
                             )
                             
                             Text(
-                                text = "Scanning network...",
+                                text = "正在扫描网络...",
                                 color = AppColors.Primary,
                                 fontSize = 14.sp,
                                 modifier = Modifier.padding(top = 100.dp)
@@ -380,14 +388,14 @@ fun MainScreen(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
                                     imageVector = Icons.Default.Link,
-                                    contentDescription = "No peers",
+                                    contentDescription = "无设备",
                                     tint = Color.Gray,
                                     modifier = Modifier.size(64.dp)
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Text("No devices found", color = Color.Gray)
+                                Text("未发现设备", color = Color.Gray)
                                 TextButton(onClick = { showAddPeerDialog = true }) {
-                                    Text("Add Manually", color = AppColors.Secondary)
+                                    Text("手动添加", color = AppColors.Secondary)
                                 }
                             }
                         }
@@ -403,10 +411,10 @@ fun MainScreen(
                                 onClick = { selectedPeer = peer },
                                 onTestLink = {
                                     scope.launch {
-                                        Toast.makeText(context, "Pinging ${peer.deviceName}...", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "正在测试 ${peer.deviceName}...", Toast.LENGTH_SHORT).show()
                                         val result = engine.testConnection(peer)
-                                        if (result) Toast.makeText(context, "Online", Toast.LENGTH_SHORT).show()
-                                        else Toast.makeText(context, "Unreachable", Toast.LENGTH_SHORT).show()
+                                        if (result) Toast.makeText(context, "设备在线", Toast.LENGTH_SHORT).show()
+                                        else Toast.makeText(context, "连接失败", Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             )
@@ -440,7 +448,7 @@ fun MainScreen(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = selectedFileName ?: "Select File to Send",
+                            text = selectedFileName ?: "选择要发送的文件",
                             color = if (selectedFileName != null) Color.White else Color.Gray,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -468,7 +476,7 @@ fun MainScreen(
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f).height(50.dp)
                         ) {
-                            Text(if (isDiscovering) "Stop" else "Scan")
+                            Text(if (isDiscovering) "停止" else "扫描")
                         }
                         
                         // Send Action
@@ -477,11 +485,11 @@ fun MainScreen(
                                 if (selectedPeer != null && selectedFileUri != null) {
                                     scope.launch {
                                         transferManager.sendFile(selectedFileUri!!, selectedPeer!!, onComplete = { s, e ->
-                                            scope.launch { Toast.makeText(context, if(s) "Sent!" else "Error: $e", Toast.LENGTH_SHORT).show() }
+                                            scope.launch { Toast.makeText(context, if(s) "发送完成" else "发送失败: $e", Toast.LENGTH_SHORT).show() }
                                         })
                                     }
                                 } else {
-                                    Toast.makeText(context, "Select file and peer first", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "请先选择文件和设备", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(
@@ -494,7 +502,7 @@ fun MainScreen(
                         ) {
                             Icon(Icons.AutoMirrored.Filled.Send, null, Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("WARP FILE")
+                            Text("开始传送")
                         }
                     }
                 }

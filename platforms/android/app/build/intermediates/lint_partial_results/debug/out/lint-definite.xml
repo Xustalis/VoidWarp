@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<incidents format="6" by="lint 8.2.2" type="incidents">
+
+    <incident
+        id="InsecureBaseConfiguration"
+        severity="warning"
+        message="Insecure Base Configuration">
+        <fix-replace
+            description="Replace with false"
+            replacement="false">
+            <range
+                file="${:app*debug*MAIN*sourceProvider*0*resDir*0}/xml/network_security_config.xml"
+                startOffset="111"
+                endOffset="115"/>
+        </fix-replace>
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*resDir*0}/xml/network_security_config.xml"
+            line="3"
+            column="45"
+            startOffset="111"
+            endLine="3"
+            endColumn="49"
+            endOffset="115"/>
+    </incident>
+
+    <incident
+        id="OldTargetApi"
+        severity="warning"
+        message="Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the android.os.Build.VERSION_CODES javadoc for details.">
+        <fix-replace
+            description="Update targetSdkVersion to 36"
+            oldString="34"
+            replacement="36"/>
+        <location
+            file="${:app*projectDir}/build.gradle.kts"
+            line="13"
+            column="9"
+            startOffset="251"
+            endLine="13"
+            endColumn="23"
+            endOffset="265"/>
+    </incident>
+
+    <incident
+        id="ChromeOsAbiSupport"
+        severity="warning"
+        message="Missing x86 ABI support for ChromeOS">
+        <location
+            file="${:app*projectDir}/build.gradle.kts"
+            line="20"
+            column="27"
+            startOffset="448"
+            endLine="20"
+            endColumn="71"
+            endOffset="492"/>
+    </incident>
+
+    <incident
+        id="IconLauncherShape"
+        severity="warning"
+        message="Launcher icons should not fill every pixel of their square region; see the design guide for details">
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*resDir*0}/mipmap-xxhdpi/ic_launcher.png"/>
+    </incident>
+
+    <incident
+        id="IconLauncherShape"
+        severity="warning"
+        message="Launcher icon used as round icon did not have a circular shape">
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*resDir*0}/mipmap-xxhdpi/ic_launcher_round.png"/>
+    </incident>
+
+    <incident
+        id="IconDuplicates"
+        severity="warning"
+        message="The following unrelated icon files have identical contents: ic_launcher.png, ic_launcher_round.png">
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*resDir*0}/mipmap-xxhdpi/ic_launcher_round.png"/>
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*resDir*0}/mipmap-xxhdpi/ic_launcher.png"/>
+    </incident>
+
+</incidents>

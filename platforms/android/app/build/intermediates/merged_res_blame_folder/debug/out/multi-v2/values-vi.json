@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.voidwarp.android.app-mergeDebugResources-43:/values-vi/values-vi.xml",
+            "outputFile": "com.voidwarp.android.app-mergeDebugResources-44:/values-vi/values-vi.xml",
             "map": [
                 {
                     "source": "C:\\Users\\X\\.gradle\\caches\\8.9\\transforms\\2361833ef1ae58bc59112fc97bf2f341\\transformed\\foundation-release\\res\\values-vi\\values-vi.xml",

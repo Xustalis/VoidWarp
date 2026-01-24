@@ -53,12 +53,13 @@ impl HeartbeatManager {
         // Bind to any available port
         let socket = UdpSocket::bind("0.0.0.0:0")?;
         socket.set_nonblocking(true)?;
-        
+
         let socket_clone = socket.try_clone()?;
         self.socket = Some(socket);
         self.peer_addr = Some(peer_addr);
         self.running.store(true, Ordering::SeqCst);
-        self.last_pong.store(current_timestamp_ms(), Ordering::SeqCst);
+        self.last_pong
+            .store(current_timestamp_ms(), Ordering::SeqCst);
 
         let running = self.running.clone();
         let last_pong = self.last_pong.clone();
@@ -67,7 +68,7 @@ impl HeartbeatManager {
         // Sender thread
         thread::spawn(move || {
             tracing::info!("Heartbeat sender started for {}", peer_addr);
-            
+
             while running.load(Ordering::SeqCst) {
                 // Send ping
                 let ping = create_ping_packet();
@@ -79,9 +80,9 @@ impl HeartbeatManager {
                 let mut buf = [0u8; 16];
                 match socket_clone.recv_from(&mut buf) {
                     Ok((len, from)) if len >= 11 && from == peer_addr => {
-                        if buf[0] == HEARTBEAT_MAGIC[0] 
-                            && buf[1] == HEARTBEAT_MAGIC[1] 
-                            && buf[2] == PACKET_PONG 
+                        if buf[0] == HEARTBEAT_MAGIC[0]
+                            && buf[1] == HEARTBEAT_MAGIC[1]
+                            && buf[2] == PACKET_PONG
                         {
                             last_pong.store(current_timestamp_ms(), Ordering::SeqCst);
                             tracing::trace!("Received pong from {}", from);
@@ -92,7 +93,7 @@ impl HeartbeatManager {
 
                 thread::sleep(Duration::from_millis(interval));
             }
-            
+
             tracing::info!("Heartbeat sender stopped");
         });
 
@@ -180,9 +181,9 @@ impl HeartbeatResponder {
             while running.load(Ordering::SeqCst) {
                 match socket.recv_from(&mut buf) {
                     Ok((len, from)) if len >= 11 => {
-                        if buf[0] == HEARTBEAT_MAGIC[0] 
-                            && buf[1] == HEARTBEAT_MAGIC[1] 
-                            && buf[2] == PACKET_PING 
+                        if buf[0] == HEARTBEAT_MAGIC[0]
+                            && buf[1] == HEARTBEAT_MAGIC[1]
+                            && buf[2] == PACKET_PING
                         {
                             // Extract timestamp and send pong
                             let pong = create_pong_packet(&buf[3..11]);

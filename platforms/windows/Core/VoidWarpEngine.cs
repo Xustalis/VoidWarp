@@ -1,5 +1,5 @@
-using System;
-using System.Collections.Generic;
+using System.Net;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using VoidWarp.Windows.Native;
 
@@ -45,11 +45,14 @@ namespace VoidWarp.Windows.Core
         /// <param name="receiverPort">The port that the file receiver is listening on</param>
         public bool StartDiscovery(ushort receiverPort)
         {
-            int result = NativeBindings.voidwarp_start_discovery(_handle, receiverPort);
-            IsDiscovering = result == 0;
+            string? localIp = GetLocalIpv4();
+            int result = localIp == null
+                ? NativeBindings.voidwarp_start_discovery(_handle, receiverPort)
+                : NativeBindings.voidwarp_start_discovery_with_ip(_handle, receiverPort, localIp);
+            IsDiscovering = true;
             
             // Auto-add localhost for USB/ADB forwarding scenarios
-            if (IsDiscovering)
+            if (result == 0)
             {
                 AddManualPeer("usb-android", "USB/Localhost", "127.0.0.1", receiverPort);
             }
@@ -60,9 +63,10 @@ namespace VoidWarp.Windows.Core
         /// <summary>
         /// Manually add a peer (e.g. for USB connections)
         /// </summary>
-        public void AddManualPeer(string id, string name, string ip, ushort port)
+        public bool AddManualPeer(string id, string name, string ip, ushort port)
         {
-            NativeBindings.voidwarp_add_manual_peer(_handle, id, name, ip, port);
+            var result = NativeBindings.voidwarp_add_manual_peer(_handle, id, name, ip, port);
+            return result == 0;
         }
 
         /// <summary>
@@ -103,6 +107,53 @@ namespace VoidWarp.Windows.Core
             }
 
             return result;
+        }
+
+        public static bool TestConnection(DiscoveredPeer peer)
+        {
+            var ips = (peer.IpAddress ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var ip in ips)
+            {
+                if (NativeBindings.voidwarp_transport_ping(ip.Trim(), peer.Port))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static string? GetLocalIpv4()
+        {
+            try
+            {
+                var host = Dns.GetHostEntry(Dns.GetHostName());
+                foreach (var ip in host.AddressList)
+                {
+                    if (ip.AddressFamily != AddressFamily.InterNetwork)
+                    {
+                        continue;
+                    }
+
+                    if (IPAddress.IsLoopback(ip))
+                    {
+                        continue;
+                    }
+
+                    var bytes = ip.GetAddressBytes();
+                    if (bytes.Length >= 2 && bytes[0] == 169 && bytes[1] == 254)
+                    {
+                        continue;
+                    }
+
+                    return ip.ToString();
+                }
+            }
+            catch
+            {
+                return null;
+            }
+
+            return null;
         }
 
         public void Dispose()

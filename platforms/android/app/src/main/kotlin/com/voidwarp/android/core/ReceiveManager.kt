@@ -44,7 +44,7 @@ data class PendingTransfer(
             fileSize >= 1024 * 1024 * 1024 -> "%.2f GB".format(fileSize / 1024.0 / 1024.0 / 1024.0)
             fileSize >= 1024 * 1024 -> "%.1f MB".format(fileSize / 1024.0 / 1024.0)
             fileSize >= 1024 -> "%.1f KB".format(fileSize / 1024.0)
-            else -> "$fileSize B"
+            else -> "$fileSize 字节"
         }
 }
 
@@ -87,6 +87,11 @@ class ReceiveManager {
             }
             
             _port.value = NativeLib.voidwarpReceiverGetPort(receiverHandle)
+            if (_port.value <= 0) {
+                NativeLib.voidwarpDestroyReceiver(receiverHandle)
+                receiverHandle = 0
+                return false
+            }
             android.util.Log.d("ReceiveManager", "Receiver created on port: ${_port.value}")
             true
         } catch (t: Throwable) {
@@ -107,6 +112,11 @@ class ReceiveManager {
             
             android.util.Log.d("ReceiveManager", "Starting receiver...")
             NativeLib.voidwarpReceiverStart(receiverHandle)
+            val started = NativeLib.voidwarpTransportStartServer(_port.value)
+            if (!started) {
+                _state.value = ReceiverState.ERROR
+                return
+            }
             _state.value = ReceiverState.LISTENING
             
             startPolling()
@@ -124,7 +134,10 @@ class ReceiveManager {
         pollingJob = null
         
         if (receiverHandle != 0L) {
-            NativeLib.voidwarpReceiverStop(receiverHandle)
+            try {
+                NativeLib.voidwarpReceiverStop(receiverHandle)
+            } catch (_: Throwable) {
+            }
         }
         
         _state.value = ReceiverState.IDLE
@@ -136,34 +149,40 @@ class ReceiveManager {
      */
     suspend fun acceptTransfer(savePath: String): Boolean = withContext(Dispatchers.IO) {
         if (receiverHandle == 0L) return@withContext false
+        if (savePath.isBlank()) return@withContext false
         
-        _state.value = ReceiverState.RECEIVING
-        
-        val result = NativeLib.voidwarpReceiverAccept(receiverHandle, savePath)
-        
-        if (result == 0) {
-            // Monitor progress during receive
-            while (_state.value == ReceiverState.RECEIVING) {
-                _progress.value = NativeLib.voidwarpReceiverGetProgress(receiverHandle)
-                _bytesReceived.value = NativeLib.voidwarpReceiverGetBytesReceived(receiverHandle)
-                
-                val newState = ReceiverState.fromInt(
-                    NativeLib.voidwarpReceiverGetState(receiverHandle)
-                )
-                
-                if (newState == ReceiverState.COMPLETED || newState == ReceiverState.ERROR) {
-                    _state.value = newState
-                    break
+        return@withContext try {
+            _state.value = ReceiverState.RECEIVING
+            
+            val result = NativeLib.voidwarpReceiverAccept(receiverHandle, savePath)
+            
+            if (result == 0) {
+                while (isActive && _state.value == ReceiverState.RECEIVING) {
+                    _progress.value = NativeLib.voidwarpReceiverGetProgress(receiverHandle)
+                    _bytesReceived.value = NativeLib.voidwarpReceiverGetBytesReceived(receiverHandle)
+                    
+                    val newState = ReceiverState.fromInt(
+                        NativeLib.voidwarpReceiverGetState(receiverHandle)
+                    )
+                    
+                    if (newState == ReceiverState.COMPLETED || newState == ReceiverState.ERROR) {
+                        _state.value = newState
+                        break
+                    }
+                    
+                    delay(100)
                 }
                 
-                delay(100)
+                _pendingTransfer.value = null
+                _state.value == ReceiverState.COMPLETED
+            } else {
+                _state.value = ReceiverState.ERROR
+                false
             }
-            
-            _pendingTransfer.value = null
-            return@withContext _state.value == ReceiverState.COMPLETED
+        } catch (_: Throwable) {
+            _state.value = ReceiverState.ERROR
+            false
         }
-        
-        false
     }
     
     /**
@@ -172,12 +191,14 @@ class ReceiveManager {
     fun rejectTransfer() {
         if (receiverHandle == 0L) return
         
-        NativeLib.voidwarpReceiverReject(receiverHandle)
-        _pendingTransfer.value = null
-        _state.value = ReceiverState.LISTENING
-        
-        // Restart listening
-        startReceiving()
+        try {
+            NativeLib.voidwarpReceiverReject(receiverHandle)
+            _pendingTransfer.value = null
+            _state.value = ReceiverState.LISTENING
+            startReceiving()
+        } catch (_: Throwable) {
+            _state.value = ReceiverState.ERROR
+        }
     }
     
     private fun startPolling() {
@@ -186,30 +207,33 @@ class ReceiveManager {
             while (isActive) {
                 if (receiverHandle == 0L) break
                 
-                val nativeState = NativeLib.voidwarpReceiverGetState(receiverHandle)
-                val newState = ReceiverState.fromInt(nativeState)
-                
-                if (newState != _state.value) {
-                    _state.value = newState
-                }
-                
-                // Check for pending transfer
-                if (newState == ReceiverState.AWAITING_ACCEPT) {
-                    val pending = NativeLib.voidwarpReceiverGetPending(receiverHandle)
-                    if (pending != null && _pendingTransfer.value == null) {
-                        _pendingTransfer.value = PendingTransfer(
-                            senderName = pending.senderName,
-                            senderAddress = pending.senderAddress,
-                            fileName = pending.fileName,
-                            fileSize = pending.fileSize
-                        )
+                try {
+                    val nativeState = NativeLib.voidwarpReceiverGetState(receiverHandle)
+                    val newState = ReceiverState.fromInt(nativeState)
+                    
+                    if (newState != _state.value) {
+                        _state.value = newState
                     }
-                }
-                
-                // Update progress if receiving
-                if (newState == ReceiverState.RECEIVING) {
-                    _progress.value = NativeLib.voidwarpReceiverGetProgress(receiverHandle)
-                    _bytesReceived.value = NativeLib.voidwarpReceiverGetBytesReceived(receiverHandle)
+                    
+                    if (newState == ReceiverState.AWAITING_ACCEPT) {
+                        val pending = NativeLib.voidwarpReceiverGetPending(receiverHandle)
+                        if (pending != null && _pendingTransfer.value == null) {
+                            _pendingTransfer.value = PendingTransfer(
+                                senderName = pending.senderName,
+                                senderAddress = pending.senderAddress,
+                                fileName = pending.fileName,
+                                fileSize = pending.fileSize
+                            )
+                        }
+                    }
+                    
+                    if (newState == ReceiverState.RECEIVING) {
+                        _progress.value = NativeLib.voidwarpReceiverGetProgress(receiverHandle)
+                        _bytesReceived.value = NativeLib.voidwarpReceiverGetBytesReceived(receiverHandle)
+                    }
+                } catch (_: Throwable) {
+                    _state.value = ReceiverState.ERROR
+                    break
                 }
                 
                 delay(200)
@@ -225,8 +249,12 @@ class ReceiveManager {
         scope.cancel()
         
         if (receiverHandle != 0L) {
-            NativeLib.voidwarpDestroyReceiver(receiverHandle)
-            receiverHandle = 0
+            try {
+                NativeLib.voidwarpDestroyReceiver(receiverHandle)
+            } catch (_: Throwable) {
+            } finally {
+                receiverHandle = 0
+            }
         }
     }
 }

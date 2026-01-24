@@ -53,7 +53,7 @@ impl TcpFileSender {
         let path = Path::new(file_path);
         let metadata = path.metadata()?;
         let file_size = metadata.len();
-        
+
         tracing::info!("Calculating checksum for file: {}", file_path);
         let file_checksum = calculate_file_checksum(path)?;
         tracing::info!("File checksum: {}", file_checksum);
@@ -115,12 +115,26 @@ impl TcpFileSender {
             .unwrap_or_else(|| "unknown".to_string())
     }
 
+    /// Test connection to a peer
+    pub fn test_connection(peer_addr: SocketAddr) -> TransferResult {
+        tracing::info!("Testing connection to {}...", peer_addr);
+        match TcpStream::connect_timeout(&peer_addr, CONNECT_TIMEOUT) {
+            Ok(_) => {
+                tracing::info!("Connection test successful!");
+                // We established a TCP connection. That's enough to prove reachability.
+                // We purposefully don't send any data to avoid confusing the receiver
+                // which expects a handshake. The receiver will just see a connect/disconnect.
+                TransferResult::Success
+            }
+            Err(e) => {
+                tracing::error!("Connection test failed: {}", e);
+                TransferResult::ConnectionFailed(e.to_string())
+            }
+        }
+    }
+
     /// Send file to a peer
-    pub fn send_to(
-        &self,
-        peer_addr: SocketAddr,
-        sender_name: &str,
-    ) -> TransferResult {
+    pub fn send_to(&self, peer_addr: SocketAddr, sender_name: &str) -> TransferResult {
         tracing::info!("Connecting to {} for file transfer...", peer_addr);
 
         // Connect with timeout
@@ -143,11 +157,7 @@ impl TcpFileSender {
     }
 
     /// Send file over an established stream
-    fn send_over_stream(
-        &self,
-        mut stream: TcpStream,
-        sender_name: &str,
-    ) -> TransferResult {
+    fn send_over_stream(&self, mut stream: TcpStream, sender_name: &str) -> TransferResult {
         // Send handshake
         if let Err(e) = self.send_handshake(&mut stream, sender_name) {
             return TransferResult::IoError(format!("Handshake failed: {}", e));
@@ -203,7 +213,11 @@ impl TcpFileSender {
                 }
             }
             self.bytes_sent.store(skipped, Ordering::SeqCst);
-            tracing::info!("Resuming from chunk {}, offset {}", start_chunk, start_offset);
+            tracing::info!(
+                "Resuming from chunk {}, offset {}",
+                start_chunk,
+                start_offset
+            );
         }
 
         // Send file in chunks
@@ -228,7 +242,9 @@ impl TcpFileSender {
             // Send chunk with retries
             let mut retries = 0;
             loop {
-                if let Err(e) = self.send_chunk(&mut stream, chunk_index, chunk_data, &chunk_checksum) {
+                if let Err(e) =
+                    self.send_chunk(&mut stream, chunk_index, chunk_data, &chunk_checksum)
+                {
                     tracing::warn!("Failed to send chunk {}: {}", chunk_index, e);
                     retries += 1;
                     if retries >= MAX_RETRIES {
@@ -257,7 +273,8 @@ impl TcpFileSender {
                 }
             }
 
-            self.bytes_sent.fetch_add(bytes_read as u64, Ordering::SeqCst);
+            self.bytes_sent
+                .fetch_add(bytes_read as u64, Ordering::SeqCst);
             chunk_index += 1;
 
             if chunk_index % 100 == 0 {
@@ -323,14 +340,14 @@ impl TcpFileSender {
         stream.write_all(&index.to_be_bytes())?;
         stream.write_all(&(data.len() as u32).to_be_bytes())?;
         stream.write_all(data)?;
-        
+
         // Convert hex checksum to bytes (first 16 chars = 8 bytes)
         let checksum_bytes: Vec<u8> = (0..std::cmp::min(16, checksum.len()))
             .step_by(2)
-            .filter_map(|i| u8::from_str_radix(&checksum[i..i+2], 16).ok())
+            .filter_map(|i| u8::from_str_radix(&checksum[i..i + 2], 16).ok())
             .collect();
         stream.write_all(&checksum_bytes)?;
-        
+
         stream.flush()?;
         Ok(())
     }
@@ -345,7 +362,11 @@ impl TcpFileSender {
         let status = ack_buf[8];
 
         if acked_index != expected_index {
-            tracing::warn!("ACK index mismatch: expected {}, got {}", expected_index, acked_index);
+            tracing::warn!(
+                "ACK index mismatch: expected {}, got {}",
+                expected_index,
+                acked_index
+            );
             return Ok(false);
         }
 

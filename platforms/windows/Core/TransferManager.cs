@@ -49,14 +49,36 @@ namespace VoidWarp.Windows.Core
                 // Start progress monitoring task
                 var progressTask = MonitorProgressAsync(_cts.Token);
 
-                // Execute TCP transfer (blocking call, run on background thread)
-                int result = await Task.Run(() =>
-                    NativeBindings.voidwarp_tcp_sender_start(
-                        _senderHandle,
-                        target.IpAddress,
-                        target.Port,
-                        Environment.MachineName
-                    ), _cts.Token);
+                var ipCandidates = (target.IpAddress ?? string.Empty)
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (ipCandidates.Length == 0 && !string.IsNullOrWhiteSpace(target.IpAddress))
+                {
+                    ipCandidates = new[] { target.IpAddress };
+                }
+
+                int result = 3;
+                foreach (var ip in ipCandidates)
+                {
+                    result = await Task.Run(() =>
+                        NativeBindings.voidwarp_tcp_sender_start(
+                            _senderHandle,
+                            ip,
+                            target.Port,
+                            Environment.MachineName
+                        ), _cts.Token);
+
+                    if (result == 0)
+                    {
+                        break;
+                    }
+
+                    if (result == 3)
+                    {
+                        continue;
+                    }
+
+                    break;
+                }
 
                 // Stop progress monitoring
                 _cts.Cancel();
@@ -83,7 +105,14 @@ namespace VoidWarp.Windows.Core
                         TransferCompleted?.Invoke(false, "校验和不匹配");
                         break;
                     case 3: // ConnectionFailed
-                        TransferCompleted?.Invoke(false, "连接失败");
+                        if (ipCandidates.Length > 0)
+                        {
+                            TransferCompleted?.Invoke(false, $"连接失败：无法连接到设备（已尝试 {ipCandidates.Length} 个IP）");
+                        }
+                        else
+                        {
+                            TransferCompleted?.Invoke(false, "连接失败");
+                        }
                         break;
                     case 4: // Timeout
                         TransferCompleted?.Invoke(false, "传输超时");
@@ -164,6 +193,7 @@ namespace VoidWarp.Windows.Core
             {
                 CleanupSender();
                 _disposed = true;
+                GC.SuppressFinalize(this);
             }
         }
     }

@@ -8,9 +8,12 @@ use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::ptr;
+use std::sync::{Mutex, OnceLock};
+use std::{net::IpAddr, net::Ipv4Addr, net::SocketAddr, time::Duration};
 
 use crate::discovery::DiscoveryManager;
 use crate::security::crypto::{DeviceIdentity, PairingCode};
+use crate::transport::{TransportClient, TransportServer};
 
 /// Opaque handle to the VoidWarp engine
 pub struct VoidWarpHandle {
@@ -90,12 +93,16 @@ pub extern "C" fn voidwarp_free_string(s: *mut c_char) {
 /// Start mDNS discovery
 /// Returns 0 on success (even if mDNS partially fails - allows manual peers), never returns -1 anymore
 /// This ensures manual peer addition always works even on restrictive networks
-#[no_mangle]
-pub extern "C" fn voidwarp_start_discovery(handle: *mut VoidWarpHandle, port: u16) -> i32 {
+/// Start mDNS discovery (internal helper)
+fn start_discovery_internal(
+    handle: *mut VoidWarpHandle,
+    port: u16,
+    explicit_ip: Option<String>,
+) -> i32 {
     // CRITICAL: Never unwind across FFI; on Android it aborts the process.
     let result = catch_unwind(AssertUnwindSafe(|| {
         if handle.is_null() {
-            tracing::error!("voidwarp_start_discovery called with null handle");
+            tracing::error!("start_discovery called with null handle");
             // Still return 0 to avoid crash loops - caller should check handle validity
             return 0;
         }
@@ -106,12 +113,13 @@ pub extern "C" fn voidwarp_start_discovery(handle: *mut VoidWarpHandle, port: u1
         let manager = match DiscoveryManager::new() {
             Ok(mut mgr) => {
                 tracing::info!("mDNS daemon created successfully");
-                
+
                 // Try to register service, but don't fail if it doesn't work
                 if let Err(e) = mgr.register_service(
                     &handle.identity.device_id,
                     &handle.identity.device_name,
                     port,
+                    explicit_ip,
                 ) {
                     tracing::warn!("Failed to register mDNS service (continuing anyway): {}", e);
                 }
@@ -131,11 +139,21 @@ pub extern "C" fn voidwarp_start_discovery(handle: *mut VoidWarpHandle, port: u1
         };
 
         handle.discovery = Some(manager);
-        tracing::info!("Discovery started (port: {}, mode: {})", 
+        tracing::info!(
+            "Discovery started (port: {}, mode: {})",
             port,
-            if handle.discovery.as_ref().map(|d| d.is_fallback()).unwrap_or(true) { "fallback" } else { "mDNS" }
+            if handle
+                .discovery
+                .as_ref()
+                .map(|d| d.is_fallback())
+                .unwrap_or(true)
+            {
+                "fallback"
+            } else {
+                "mDNS"
+            }
         );
-        
+
         // ALWAYS return 0 - we can always add manual peers even if mDNS doesn't work
         0
     }));
@@ -143,11 +161,38 @@ pub extern "C" fn voidwarp_start_discovery(handle: *mut VoidWarpHandle, port: u1
     match result {
         Ok(code) => code,
         Err(_) => {
-            tracing::error!("panic caught in voidwarp_start_discovery, returning success anyway");
+            tracing::error!("panic caught in start_discovery, returning success anyway");
             // Even on panic, return 0 to allow manual peer addition
             0
         }
     }
+}
+
+/// Start mDNS discovery (auto-detect IP)
+/// Returns 0 on success
+#[no_mangle]
+pub extern "C" fn voidwarp_start_discovery(handle: *mut VoidWarpHandle, port: u16) -> i32 {
+    start_discovery_internal(handle, port, None)
+}
+
+/// Start mDNS discovery with explicit IP (for reliable Android discovery)
+/// Returns 0 on success
+#[no_mangle]
+pub extern "C" fn voidwarp_start_discovery_with_ip(
+    handle: *mut VoidWarpHandle,
+    port: u16,
+    ip_address: *const c_char,
+) -> i32 {
+    let explicit_ip = if !ip_address.is_null() {
+        unsafe { CStr::from_ptr(ip_address) }
+            .to_str()
+            .ok()
+            .map(|s| s.to_string())
+    } else {
+        None
+    };
+
+    start_discovery_internal(handle, port, explicit_ip)
 }
 
 /// Stop mDNS discovery
@@ -180,10 +225,14 @@ pub extern "C" fn voidwarp_add_manual_peer(
         None => return -1,
     };
 
-    let device_id = unsafe { CStr::from_ptr(device_id) }.to_string_lossy().to_string();
-    let device_name = unsafe { CStr::from_ptr(device_name) }.to_string_lossy().to_string();
+    let device_id = unsafe { CStr::from_ptr(device_id) }
+        .to_string_lossy()
+        .to_string();
+    let device_name = unsafe { CStr::from_ptr(device_name) }
+        .to_string_lossy()
+        .to_string();
     let ip_str = unsafe { CStr::from_ptr(ip_address) }.to_string_lossy();
-    
+
     let ip: std::net::IpAddr = match ip_str.parse() {
         Ok(ip) => ip,
         Err(_) => return -1,
@@ -236,19 +285,33 @@ pub extern "C" fn voidwarp_get_peers(handle: *const VoidWarpHandle) -> FfiPeerLi
     let mut ffi_peers: Vec<FfiPeer> = peers
         .iter()
         .map(|p| {
-            // Prioritize IPv4 and avoid link-local/loopback
-            let best_ip = p.addresses.iter()
-                .find(|ip| {
-                    match ip {
-                        std::net::IpAddr::V4(ipv4) => !ipv4.is_loopback() && !ipv4.is_link_local(),
-                        _ => false,
-                    }
+            // Return ALL valid IPs as a comma-separated string
+            // This allows the UI to show them all or try them sequentially
+            let valid_ips: Vec<String> = p
+                .addresses
+                .iter()
+                .filter(|ip| match ip {
+                    std::net::IpAddr::V4(ipv4) => !ipv4.is_loopback() && !ipv4.is_link_local(),
+                    _ => false, // Focusing on IPv4 for now due to Android/Windows cross-compatibility quirks
                 })
-                .or_else(|| p.addresses.first()); // Fallback to first available
+                .map(|ip| ip.to_string())
+                .collect();
 
-            let ip_str = best_ip
-                .map(|a| a.to_string())
-                .unwrap_or_default();
+            // Sort them to prioritize 192.168.x.x (typical home/office wifi)
+            let mut sorted_ips = valid_ips;
+            sorted_ips.sort_by(|a, b| {
+                let a_is_local = a.starts_with("192.168.");
+                let b_is_local = b.starts_with("192.168.");
+                if a_is_local && !b_is_local {
+                    std::cmp::Ordering::Less
+                } else if !a_is_local && b_is_local {
+                    std::cmp::Ordering::Greater
+                } else {
+                    a.cmp(b)
+                }
+            });
+
+            let ip_str = sorted_ips.join(",");
 
             FfiPeer {
                 device_id: CString::new(p.device_id.clone())
@@ -265,7 +328,14 @@ pub extern "C" fn voidwarp_get_peers(handle: *const VoidWarpHandle) -> FfiPeerLi
         })
         .collect();
 
+    // Ensure capacity equals length for safe reconstruction later
     ffi_peers.shrink_to_fit();
+    if ffi_peers.capacity() != ffi_peers.len() {
+        let mut exact = Vec::with_capacity(ffi_peers.len());
+        exact.extend(ffi_peers);
+        ffi_peers = exact;
+    }
+
     let count = ffi_peers.len();
     let ptr = ffi_peers.as_mut_ptr();
     std::mem::forget(ffi_peers);
@@ -548,7 +618,9 @@ pub extern "C" fn voidwarp_receiver_get_state(receiver: *const FfiFileReceiver) 
 /// The returned struct's strings must be freed with voidwarp_free_string
 /// Check is_valid field to see if there is a pending transfer
 #[no_mangle]
-pub extern "C" fn voidwarp_receiver_get_pending(receiver: *const FfiFileReceiver) -> FfiPendingTransfer {
+pub extern "C" fn voidwarp_receiver_get_pending(
+    receiver: *const FfiFileReceiver,
+) -> FfiPendingTransfer {
     let empty = FfiPendingTransfer {
         sender_name: ptr::null_mut(),
         sender_addr: ptr::null_mut(),
@@ -727,20 +799,26 @@ pub extern "C" fn voidwarp_tcp_sender_get_checksum(sender: *const FfiTcpSender) 
         return ptr::null_mut();
     }
     let checksum = unsafe { (*sender).sender.checksum() };
-    CString::new(checksum).map(|s| s.into_raw()).unwrap_or(ptr::null_mut())
+    CString::new(checksum)
+        .map(|s| s.into_raw())
+        .unwrap_or(ptr::null_mut())
 }
 
 /// Get file size
 #[no_mangle]
 pub extern "C" fn voidwarp_tcp_sender_get_file_size(sender: *const FfiTcpSender) -> u64 {
-    if sender.is_null() { return 0; }
+    if sender.is_null() {
+        return 0;
+    }
     unsafe { (*sender).sender.file_size() }
 }
 
 /// Get transfer progress (0-100)
 #[no_mangle]
 pub extern "C" fn voidwarp_tcp_sender_get_progress(sender: *const FfiTcpSender) -> f32 {
-    if sender.is_null() { return 0.0; }
+    if sender.is_null() {
+        return 0.0;
+    }
     unsafe { (*sender).sender.progress() }
 }
 
@@ -748,7 +826,31 @@ pub extern "C" fn voidwarp_tcp_sender_get_progress(sender: *const FfiTcpSender) 
 #[no_mangle]
 pub extern "C" fn voidwarp_tcp_sender_cancel(sender: *const FfiTcpSender) {
     if !sender.is_null() {
-        unsafe { (*sender).sender.cancel(); }
+        unsafe {
+            (*sender).sender.cancel();
+        }
+    }
+}
+
+/// Test connection to a peer
+/// Returns: 0=Success, 3=ConnectionFailed
+#[no_mangle]
+pub extern "C" fn voidwarp_tcp_sender_test_link(ip_address: *const c_char, port: u16) -> i32 {
+    if ip_address.is_null() {
+        return 3;
+    }
+
+    let ip_str = unsafe { CStr::from_ptr(ip_address) }.to_string_lossy();
+    let ip: std::net::IpAddr = match ip_str.parse() {
+        Ok(ip) => ip,
+        Err(_) => return 3,
+    };
+
+    let peer_addr = std::net::SocketAddr::new(ip, port);
+
+    match TcpFileSender::test_connection(peer_addr) {
+        TransferResult::Success => 0,
+        _ => 3,
     }
 }
 
@@ -756,8 +858,50 @@ pub extern "C" fn voidwarp_tcp_sender_cancel(sender: *const FfiTcpSender) {
 #[no_mangle]
 pub extern "C" fn voidwarp_tcp_sender_destroy(sender: *mut FfiTcpSender) {
     if !sender.is_null() {
-        unsafe { let _ = Box::from_raw(sender); }
+        unsafe {
+            let _ = Box::from_raw(sender);
+        }
     }
+}
+
+static TRANSPORT_SERVER: OnceLock<Mutex<Option<TransportServer>>> = OnceLock::new();
+
+fn transport_server_cell() -> &'static Mutex<Option<TransportServer>> {
+    TRANSPORT_SERVER.get_or_init(|| Mutex::new(None))
+}
+
+#[no_mangle]
+pub extern "C" fn voidwarp_transport_start_server(port: u16) -> bool {
+    let mut cell = transport_server_cell().lock().unwrap();
+    if cell.is_some() {
+        return true;
+    }
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), port);
+    match TransportServer::bind(addr) {
+        Ok(server) => {
+            *cell = Some(server);
+            true
+        }
+        Err(_) => false,
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn voidwarp_transport_ping(ip_address: *const c_char, port: u16) -> bool {
+    if ip_address.is_null() {
+        return false;
+    }
+    let ip_str = unsafe { CStr::from_ptr(ip_address) }.to_string_lossy();
+    let ip: IpAddr = match ip_str.parse() {
+        Ok(ip) => ip,
+        Err(_) => return false,
+    };
+    let addr = SocketAddr::new(ip, port);
+    let mut client = match TransportClient::connect(addr, Duration::from_secs(3)) {
+        Ok(client) => client,
+        Err(_) => return false,
+    };
+    matches!(client.ping(), Ok(true))
 }
 
 #[cfg(test)]

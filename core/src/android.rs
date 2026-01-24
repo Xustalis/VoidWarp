@@ -1,8 +1,8 @@
- #![cfg(target_os = "android")]
+#![cfg(target_os = "android")]
 #![allow(non_snake_case)]
 
-use crate::ffi;
 use crate::discovery::{DiscoveredPeer, DiscoveryManager};
+use crate::ffi;
 use jni::objects::{JClass, JObject, JString, JValue};
 use jni::sys::{jint, jlong, jobject, jobjectArray, jstring};
 use jni::JNIEnv;
@@ -84,12 +84,18 @@ pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpGene
 
 #[no_mangle]
 pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpStartDiscovery(
-    _env: JNIEnv,
+    mut env: JNIEnv,
     _class: JClass,
     handle: jlong,
+    ip_address: JString,
     port: jint,
 ) -> jint {
-    ffi::voidwarp_start_discovery(handle as *mut ffi::VoidWarpHandle, port as u16)
+    let ip = get_string(&mut env, ip_address);
+    ffi::voidwarp_start_discovery_with_ip(
+        handle as *mut ffi::VoidWarpHandle,
+        port as u16,
+        ip.as_ptr(),
+    )
 }
 
 #[no_mangle]
@@ -124,12 +130,12 @@ pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpAddM
     let id = get_rust_string(&mut env, device_id);
     let name = get_rust_string(&mut env, device_name);
     let ip_str = get_rust_string(&mut env, ip_address);
-    
+
     let ip: std::net::IpAddr = match ip_str.parse() {
         Ok(ip) => ip,
         Err(_) => return -2,
     };
-    
+
     discovery.add_manual_peer(id, name, ip, port as u16);
     0
 }
@@ -340,35 +346,38 @@ pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpRece
     receiver: jlong,
 ) -> jobject {
     let pending = ffi::voidwarp_receiver_get_pending(receiver as *const ffi::FfiFileReceiver);
-    
+
     if !pending.is_valid {
         return JObject::null().into_raw();
     }
 
     // Create PendingTransfer object
-    let class = env.find_class("com/voidwarp/android/native/NativeLib$PendingTransfer")
+    let class = env
+        .find_class("com/voidwarp/android/native/NativeLib$PendingTransfer")
         .expect("Failed to find PendingTransfer class");
-    
+
     let sender_name = from_c_string(&mut env, pending.sender_name);
     let sender_addr = from_c_string(&mut env, pending.sender_addr);
     let file_name = from_c_string(&mut env, pending.file_name);
-    
+
     // Save file_size before freeing
     let file_size = pending.file_size;
-    
+
     // Free the C strings
     ffi::voidwarp_free_pending_transfer(pending);
-    
-    let obj = env.new_object(
-        &class,
-        "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)V",
-        &[
-            JValue::Object(&JObject::from_raw(sender_name)),
-            JValue::Object(&JObject::from_raw(sender_addr)),
-            JValue::Object(&JObject::from_raw(file_name)),
-            JValue::Long(file_size as i64),
-        ],
-    ).expect("Failed to create PendingTransfer object");
+
+    let obj = env
+        .new_object(
+            &class,
+            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)V",
+            &[
+                JValue::Object(&JObject::from_raw(sender_name)),
+                JValue::Object(&JObject::from_raw(sender_addr)),
+                JValue::Object(&JObject::from_raw(file_name)),
+                JValue::Long(file_size as i64),
+            ],
+        )
+        .expect("Failed to create PendingTransfer object");
 
     obj.into_raw()
 }
@@ -381,10 +390,7 @@ pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpRece
     save_path: JString,
 ) -> jint {
     let path = get_string(&mut env, save_path);
-    ffi::voidwarp_receiver_accept(
-        receiver as *mut ffi::FfiFileReceiver,
-        path.as_ptr(),
-    )
+    ffi::voidwarp_receiver_accept(receiver as *mut ffi::FfiFileReceiver, path.as_ptr())
 }
 
 #[no_mangle]
@@ -437,10 +443,12 @@ pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpCalc
 ) -> jstring {
     let path_str = get_string(&mut env, file_path);
     let path = std::path::Path::new(path_str.to_str().unwrap_or(""));
-    
+
     match checksum::calculate_file_checksum(path) {
         Ok(hash) => {
-            let jstr = env.new_string(&hash).expect("Failed to create checksum string");
+            let jstr = env
+                .new_string(&hash)
+                .expect("Failed to create checksum string");
             jstr.into_raw()
         }
         Err(e) => {
@@ -460,7 +468,7 @@ pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpVeri
     let path_str = get_string(&mut env, file_path);
     let expected_str = get_string(&mut env, expected_checksum);
     let path = std::path::Path::new(path_str.to_str().unwrap_or(""));
-    
+
     match checksum::verify_file_checksum(path, expected_str.to_str().unwrap_or("")) {
         Ok(true) => 1,  // Match
         Ok(false) => 0, // Mismatch
@@ -473,16 +481,9 @@ pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpVeri
 // ============================================================================
 
 use crate::sender::TcpFileSender;
-use std::sync::Mutex;
 
-// We need a way to store TcpFileSender in JNI - use a global map or boxed pointer
-static mut SENDERS: Option<Mutex<Vec<Option<Box<TcpFileSender>>>>> = None;
-
-fn get_senders() -> &'static Mutex<Vec<Option<Box<TcpFileSender>>>> {
-    unsafe {
-        SENDERS.get_or_insert_with(|| Mutex::new(Vec::new()))
-    }
-}
+// We use raw pointers (jlong) to store TcpFileSender instances on the Java side.
+// No global map is needed.
 
 #[no_mangle]
 pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpTcpSenderCreate(
@@ -491,7 +492,7 @@ pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpTcpS
     file_path: JString,
 ) -> jlong {
     let path_str = get_string(&mut env, file_path);
-    
+
     match TcpFileSender::new(path_str.to_str().unwrap_or("")) {
         Ok(sender) => {
             let boxed = Box::new(sender);
@@ -514,7 +515,9 @@ pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpTcpS
         return JObject::null().into_raw();
     }
     let sender_ref = &*(sender as *const TcpFileSender);
-    let jstr = env.new_string(sender_ref.checksum()).expect("Failed to create checksum string");
+    let jstr = env
+        .new_string(sender_ref.checksum())
+        .expect("Failed to create checksum string");
     jstr.into_raw()
 }
 
@@ -580,19 +583,19 @@ pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpTcpS
     if sender == 0 {
         return -1;
     }
-    
+
     let ip_str = get_string(&mut env, ip_address);
     let name_str = get_string(&mut env, sender_name);
-    
+
     let ip: std::net::IpAddr = match ip_str.to_str().unwrap_or("").parse() {
         Ok(ip) => ip,
         Err(_) => return -2, // Invalid IP
     };
-    
+
     let peer_addr = std::net::SocketAddr::new(ip, port as u16);
-    
+
     let sender_ref = &*(sender as *const TcpFileSender);
-    
+
     // Blocking call! Should be called from background thread
     match sender_ref.send_to(peer_addr, name_str.to_str().unwrap_or("Android Device")) {
         crate::sender::TransferResult::Success => 0,
@@ -605,3 +608,41 @@ pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpTcpS
     }
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpTcpSenderTestLink(
+    mut env: JNIEnv,
+    _class: JClass,
+    ip_address: JString,
+    port: jint,
+) -> jint {
+    let ip_str = get_string(&mut env, ip_address);
+    ffi::voidwarp_tcp_sender_test_link(ip_str.as_ptr(), port as u16)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpTransportStartServer(
+    _env: JNIEnv,
+    _class: JClass,
+    port: jint,
+) -> jboolean {
+    if ffi::voidwarp_transport_start_server(port as u16) {
+        1
+    } else {
+        0
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpTransportPing(
+    mut env: JNIEnv,
+    _class: JClass,
+    ip_address: JString,
+    port: jint,
+) -> jboolean {
+    let ip_str = get_string(&mut env, ip_address);
+    if ffi::voidwarp_transport_ping(ip_str.as_ptr(), port as u16) {
+        1
+    } else {
+        0
+    }
+}

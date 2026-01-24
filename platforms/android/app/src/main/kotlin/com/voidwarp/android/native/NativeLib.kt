@@ -36,7 +36,7 @@ object NativeLib {
     // Discovery
     // ========================================================================
     
-    external fun voidwarpStartDiscovery(handle: Long, port: Int): Int
+    external fun voidwarpStartDiscovery(handle: Long, ipAddress: String, port: Int): Int
     external fun voidwarpStopDiscovery(handle: Long)
     external fun voidwarpAddManualPeer(handle: Long, deviceId: String, deviceName: String, ipAddress: String, port: Int): Int
     external fun voidwarpGetPeers(handle: Long): Array<PeerInfo>?
@@ -86,6 +86,10 @@ object NativeLib {
     external fun voidwarpTcpSenderGetProgress(sender: Long): Float
     external fun voidwarpTcpSenderCancel(sender: Long)
     external fun voidwarpTcpSenderDestroy(sender: Long)
+    external fun voidwarpTcpSenderTestLink(ipAddress: String, port: Int): Int
+
+    external fun voidwarpTransportStartServer(port: Int): Boolean
+    external fun voidwarpTransportPing(ipAddress: String, port: Int): Boolean
     
     // ========================================================================
     // Data Classes

@@ -72,6 +72,7 @@ impl DiscoveryManager {
         device_id: &str,
         device_name: &str,
         port: u16,
+        host_ip: Option<String>,
     ) -> Result<(), String> {
         // Include platform identifier for debugging cross-platform issues
         #[cfg(target_os = "windows")]
@@ -82,7 +83,12 @@ impl DiscoveryManager {
         let platform = "macos";
         #[cfg(target_os = "ios")]
         let platform = "ios";
-        #[cfg(not(any(target_os = "windows", target_os = "android", target_os = "macos", target_os = "ios")))]
+        #[cfg(not(any(
+            target_os = "windows",
+            target_os = "android",
+            target_os = "macos",
+            target_os = "ios"
+        )))]
         let platform = "unknown";
 
         let properties = [
@@ -100,24 +106,33 @@ impl DiscoveryManager {
         let hostname = "voidwarp.local.";
 
         tracing::info!(
-            "Registering mDNS service: instance={}, hostname={}, port={}, platform={}",
-            instance_name, hostname, port, platform
+            "Registering mDNS service: instance={}, hostname={}, port={}, platform={}, explicit_ip={:?}",
+            instance_name, hostname, port, platform, host_ip
         );
 
-        let service_info = ServiceInfo::new(
+        let mut service_info = ServiceInfo::new(
             SERVICE_TYPE,
             instance_name,
-            &hostname,
-            "", // Let mdns-sd auto-detect addresses
+            hostname,
+            host_ip.as_deref().unwrap_or(""),
             port,
             &properties[..],
         )
-        .map_err(|e| format!("Failed to create service info: {}", e))?
-        .enable_addr_auto(); // Enable automatic address detection for all interfaces
+        .map_err(|e| format!("Failed to create service info: {}", e))?;
 
-        tracing::debug!("Service info created with auto-address detection enabled");
+        // Only enable auto address detection if no explicit IP was provided
+        if host_ip.is_none() {
+            service_info = service_info.enable_addr_auto();
+            tracing::debug!(
+                "Service info created with auto-address detection enabled (no explicit IP)"
+            );
+        } else if let Some(explicit_ip) = host_ip.as_deref() {
+            tracing::debug!("Service info created with explicit IP: {}", explicit_ip);
+        }
 
-        let daemon = self.daemon.as_ref()
+        let daemon = self
+            .daemon
+            .as_ref()
             .ok_or_else(|| "mDNS daemon not available".to_string())?;
         daemon
             .register(service_info)
@@ -126,7 +141,9 @@ impl DiscoveryManager {
         self.our_service = Some(device_id.to_string());
         tracing::info!(
             "Successfully registered mDNS service: {} on port {} ({})",
-            device_id, port, platform
+            device_id,
+            port,
+            platform
         );
 
         Ok(())
@@ -135,7 +152,9 @@ impl DiscoveryManager {
     /// Start browsing for peers
     pub fn browse(&self) -> Result<MdnsReceiver<ServiceEvent>, String> {
         tracing::info!("Starting mDNS browse for service type: {}", SERVICE_TYPE);
-        let daemon = self.daemon.as_ref()
+        let daemon = self
+            .daemon
+            .as_ref()
             .ok_or_else(|| "mDNS daemon not available (fallback mode)".to_string())?;
         daemon
             .browse(SERVICE_TYPE)
@@ -160,7 +179,7 @@ impl DiscoveryManager {
                             .get_property_val_str("id")
                             .unwrap_or_default()
                             .to_string();
-                        
+
                         // Skip our own service
                         if let Some(ref our) = our_id {
                             if &device_id == our {
@@ -173,7 +192,7 @@ impl DiscoveryManager {
                             .get_property_val_str("name")
                             .unwrap_or_else(|| info.get_fullname())
                             .to_string();
-                        
+
                         let platform = info
                             .get_property_val_str("platform")
                             .unwrap_or("unknown")
@@ -215,7 +234,11 @@ impl DiscoveryManager {
                     }
                     ServiceEvent::ServiceRemoved(_, fullname) => {
                         let device_id = fullname.split('.').next().unwrap_or("").to_string();
-                        tracing::info!("Peer removed: id='{}' (fullname='{}')", device_id, fullname);
+                        tracing::info!(
+                            "Peer removed: id='{}' (fullname='{}')",
+                            device_id,
+                            fullname
+                        );
                         {
                             let mut peers_guard = peers.write().unwrap();
                             peers_guard.remove(&device_id);
@@ -260,7 +283,7 @@ impl DiscoveryManager {
                             .get_property_val_str("id")
                             .unwrap_or_default()
                             .to_string();
-                        
+
                         // Skip our own service
                         if let Some(ref our) = our_id {
                             if &device_id == our {
@@ -272,7 +295,7 @@ impl DiscoveryManager {
                             .get_property_val_str("name")
                             .unwrap_or_else(|| info.get_fullname())
                             .to_string();
-                        
+
                         let platform = info
                             .get_property_val_str("platform")
                             .unwrap_or("unknown")
@@ -324,13 +347,7 @@ impl DiscoveryManager {
     }
 
     /// Manually add a peer (e.g. for direct USB connection)
-    pub fn add_manual_peer(
-        &self,
-        device_id: String,
-        device_name: String,
-        ip: IpAddr,
-        port: u16,
-    ) {
+    pub fn add_manual_peer(&self, device_id: String, device_name: String, ip: IpAddr, port: u16) {
         let peer = DiscoveredPeer {
             device_id: device_id.clone(),
             device_name,
