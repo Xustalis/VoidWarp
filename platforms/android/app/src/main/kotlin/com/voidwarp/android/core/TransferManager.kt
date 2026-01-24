@@ -61,8 +61,8 @@ class TransferManager(private val context: Context) {
                 return@withContext
             }
             
-            val checksum = NativeLib.voidwarpTcpSenderGetChecksum(senderHandle)
-            val fileSize = NativeLib.voidwarpTcpSenderGetFileSize(senderHandle)
+            NativeLib.voidwarpTcpSenderGetChecksum(senderHandle)
+            NativeLib.voidwarpTcpSenderGetFileSize(senderHandle)
             
             _statusMessage.value = "连接 ${peer.deviceName}..."
             
@@ -84,17 +84,43 @@ class TransferManager(private val context: Context) {
             // Start transfer
             _statusMessage.value = "正在发送..."
             
-            val result = NativeLib.voidwarpTcpSenderStart(
-                senderHandle,
-                peer.ipAddress,
-                peer.port,
-                android.os.Build.MODEL
-            )
+            // Try all available IPs (Smart Retry)
+            val ips = peer.ipAddress.split(",").filter { it.isNotBlank() }
+            var finalResult = 3 // Default to connection failed
+            for (ip in ips) {
+                if (!isActive || !_isTransferring.value) break // Stop if cancelled
+                
+                val targetIp = ip.trim()
+                _statusMessage.value = "尝试连接 $targetIp..."
+                android.util.Log.d("TransferManager", "Trying to send to $targetIp:${peer.port}")
+                
+                val result = NativeLib.voidwarpTcpSenderStart(
+                    senderHandle,
+                    targetIp,
+                    peer.port,
+                    android.os.Build.MODEL
+                )
+                
+                if (result == 0) {
+                    android.util.Log.i("TransferManager", "Success connected to $targetIp")
+                    finalResult = 0
+                    break // Success!
+                } else if (result == 3) {
+                    // Connection failed, try next IP
+                    android.util.Log.w("TransferManager", "Connection to $targetIp failed (Result=3), trying next...")
+                    continue
+                } else {
+                    // Other errors (rejected, checksum, etc.) are fatal for this transfer attempt
+                    android.util.Log.e("TransferManager", "Fatal error during transfer to $targetIp: $result")
+                    finalResult = result
+                    break
+                }
+            }
             
             // Wait for progress job
             transferJob?.cancel()
             
-            when (result) {
+            when (finalResult) {
                 0 -> {
                     _statusMessage.value = "发送完成！"
                     _progress.value = 100f
@@ -109,8 +135,8 @@ class TransferManager(private val context: Context) {
                     onComplete(false, "校验和不匹配")
                 }
                 3 -> {
-                    _statusMessage.value = "连接失败"
-                    onComplete(false, "连接失败")
+                    _statusMessage.value = "连接失败 (尝试了所有IP)"
+                    onComplete(false, "连接失败: 无法连接到设备 (${ips.size} IPs tried)")
                 }
                 4 -> {
                     _statusMessage.value = "传输超时"
@@ -121,8 +147,8 @@ class TransferManager(private val context: Context) {
                     onComplete(false, "已取消")
                 }
                 else -> {
-                    _statusMessage.value = "发生未知错误 ($result)"
-                    onComplete(false, "未知错误: $result")
+                    _statusMessage.value = "发生未知错误 ($finalResult)"
+                    onComplete(false, "未知错误: $finalResult")
                 }
             }
             

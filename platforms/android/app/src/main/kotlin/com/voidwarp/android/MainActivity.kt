@@ -19,10 +19,28 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.core.*
+import androidx.compose.ui.draw.scale
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.voidwarp.android.core.*
 import com.voidwarp.android.ui.theme.VoidWarpTheme
+import com.voidwarp.android.ui.ReceivedFilesScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
@@ -47,6 +66,7 @@ class MainActivity : ComponentActivity() {
     private var receiveManager: ReceiveManager? = null
     private var multicastLock: WifiManager.MulticastLock? = null
     
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -54,6 +74,13 @@ class MainActivity : ComponentActivity() {
         if (android.os.Build.VERSION.SDK_INT >= 33) {
             if (checkSelfPermission(Manifest.permission.NEARBY_WIFI_DEVICES) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(arrayOf(Manifest.permission.NEARBY_WIFI_DEVICES), 1001)
+            }
+        }
+        
+        // Request storage permissions for older Android versions (< 10)
+        if (android.os.Build.VERSION.SDK_INT < 29) {
+            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), 1002)
             }
         }
         
@@ -77,13 +104,21 @@ class MainActivity : ComponentActivity() {
             VoidWarpTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = Color(0xFF1A1A2E)
+                    color = AppColors.Background
                 ) {
-                    MainScreen(
-                        engine = engine!!,
-                        transferManager = transferManager!!,
-                        receiveManager = receiveManager!!
-                    )
+                    var currentScreen by remember { mutableStateOf("main") }
+                    
+                    when (currentScreen) {
+                        "main" -> MainScreen(
+                            engine = engine!!,
+                            transferManager = transferManager!!,
+                            receiveManager = receiveManager!!,
+                            onNavigateToReceived = { currentScreen = "received" }
+                        )
+                        "received" -> ReceivedFilesScreen(
+                            onBack = { currentScreen = "main" }
+                        )
+                    }
                 }
             }
         }
@@ -102,7 +137,8 @@ class MainActivity : ComponentActivity() {
 fun MainScreen(
     engine: VoidWarpEngine,
     transferManager: TransferManager,
-    receiveManager: ReceiveManager
+    receiveManager: ReceiveManager,
+    onNavigateToReceived: () -> Unit
 ) {
     val context = LocalContext.current
     val isDiscovering by engine.isDiscovering.collectAsState()
@@ -120,8 +156,6 @@ fun MainScreen(
     // Collect manager states
     val isReceiveMode by receiveManager.state.collectAsState()
     val receiverPort by receiveManager.port.collectAsState()
-    val transferProgress by transferManager.progress.collectAsState()
-    val statusText by transferManager.statusMessage.collectAsState()
     
     // File picker launcher
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -158,306 +192,402 @@ fun MainScreen(
                 .padding(16.dp)
         ) {
             // Header
-            Text(
-                text = "VoidWarp",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF6C63FF)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "VOID WARP",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.Primary,
+                        letterSpacing = 2.sp
+                    )
+                    
+                    Text(
+                        text = "ID: ${engine.deviceId.take(8).uppercase()}",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.Gray,
+                        modifier = Modifier
+                            .background(AppColors.SurfaceVariant, RoundedCornerShape(4.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+                
+                IconButton(
+                    onClick = onNavigateToReceived,
+                    modifier = Modifier
+                        .background(AppColors.SurfaceVariant, CircleShape)
+                        .size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Description,
+                        contentDescription = "Received Files",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
             
-            Text(
-                text = "设备 ID: ${engine.deviceId.take(8)}...",
-                fontSize = 12.sp,
-                color = Color.Gray,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Receive Mode Toggle
+            // Receive Mode Switch (Clean Design)
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF16213E))
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = AppColors.Surface)
             ) {
                 Row(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                        .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            text = "接收模式",
-                            color = Color.White,
-                            fontSize = 14.sp
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(
+                                if (isReceiveMode != ReceiverState.IDLE) AppColors.Success.copy(alpha = 0.2f) 
+                                else AppColors.SurfaceVariant, 
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Description, // Using Description as generic 'File' icon proxy
+                            contentDescription = null,
+                            tint = if (isReceiveMode != ReceiverState.IDLE) AppColors.Success else Color.Gray
                         )
-                        if (isReceiveMode != ReceiverState.IDLE) {
-                            Text(
-                                text = "端口: $receiverPort",
-                                color = Color.Gray,
-                                fontSize = 11.sp
-                            )
-                        }
                     }
+                    
+                    Spacer(modifier = Modifier.width(16.dp))
+                    
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isReceiveMode != ReceiverState.IDLE) "Ready to Receive" else "Receive Mode Off",
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = if (isReceiveMode != ReceiverState.IDLE) "Visible on port $receiverPort" else "Tap switch to enable",
+                            fontSize = 12.sp,
+                            color = Color.Gray
+                        )
+                    }
+                    
                     Switch(
                         checked = isReceiveMode != ReceiverState.IDLE,
                         onCheckedChange = { checked ->
-                            if (checked) {
-                                receiveManager.startReceiving()
-                            } else {
-                                receiveManager.stopReceiving()
-                            }
+                            if (checked) receiveManager.startReceiving() else receiveManager.stopReceiving()
                         },
                         colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color(0xFF6C63FF),
-                            checkedTrackColor = Color(0xFF4A4E69)
+                            checkedThumbColor = AppColors.Primary,
+                            checkedTrackColor = AppColors.SurfaceLight
                         )
                     )
                 }
             }
             
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             
-            // Discovery Status
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 8.dp)
+            // Diagnostic Info (Debug)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceVariant),
+                shape = RoundedCornerShape(8.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .clip(CircleShape)
-                        .background(if (isDiscovering) Color(0xFF6C63FF) else Color.Gray)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (isDiscovering) "已发现 ${peers.size} 个设备" else "发现已停止",
-                    color = Color.LightGray,
-                    fontSize = 13.sp
-                )
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        text = "DIAGNOSTICS",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    
+                    // Show all IPs
+                    val ips = getAllIpAddresses()
+                    Text(
+                        text = "My IPs: ${ips.joinToString(", ")}",
+                        fontSize = 11.sp,
+                        color = Color.White,
+                        lineHeight = 16.sp
+                    )
+                    
+                    Text(
+                        text = "Discovery: ${if(isDiscovering) "Active" else "Idle"} | Listening: $receiverPort",
+                        fontSize = 11.sp,
+                        color = AppColors.Primary
+                    )
+                }
             }
             
-            // Device List
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF16213E))
-            ) {
-                LazyColumn(
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    items(peers) { peer ->
-                        PeerItem(
-                            peer = peer,
-                            isSelected = peer == selectedPeer,
-                            onClick = { selectedPeer = peer }
-                        )
-                    }
-                    
-                    if (peers.isEmpty()) {
-                        item {
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Radar / Device List Section
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "NEARBY DEVICES",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Gray,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                
+                if (peers.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isDiscovering) {
+                            // Radar Animation Placeholder (Simple circle pulse simulation)
+                            val infiniteTransition = rememberInfiniteTransition()
+                            val scale by infiniteTransition.animateFloat(
+                                initialValue = 0.8f,
+                                targetValue = 1.2f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(1500),
+                                    repeatMode = RepeatMode.Reverse
+                                )
+                            )
+                            
+                            Box(
+                                modifier = Modifier
+                                    .size(120.dp)
+                                    .scale(scale)
+                                    .background(AppColors.Primary.copy(alpha = 0.1f), CircleShape)
+                            )
+                            
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send, // Placeholder for Radar
+                                contentDescription = "Scanning",
+                                tint = AppColors.Primary,
+                                modifier = Modifier.size(48.dp)
+                            )
+                            
                             Text(
-                                text = if (isDiscovering) "正在搜索..." else "点击下方按钮开始发现设备",
-                                color = Color.Gray,
-                                modifier = Modifier.padding(16.dp)
+                                text = "Scanning network...",
+                                color = AppColors.Primary,
+                                fontSize = 14.sp,
+                                modifier = Modifier.padding(top = 100.dp)
+                            )
+                        } else {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.Link,
+                                    contentDescription = "No peers",
+                                    tint = Color.Gray,
+                                    modifier = Modifier.size(64.dp)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("No devices found", color = Color.Gray)
+                                TextButton(onClick = { showAddPeerDialog = true }) {
+                                    Text("Add Manually", color = AppColors.Secondary)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(peers) { peer ->
+                            PeerItem(
+                                peer = peer,
+                                isSelected = peer == selectedPeer,
+                                onClick = { selectedPeer = peer },
+                                onTestLink = {
+                                    scope.launch {
+                                        Toast.makeText(context, "Pinging ${peer.deviceName}...", Toast.LENGTH_SHORT).show()
+                                        val result = engine.testConnection(peer)
+                                        if (result) Toast.makeText(context, "Online", Toast.LENGTH_SHORT).show()
+                                        else Toast.makeText(context, "Unreachable", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
                             )
                         }
                     }
                 }
             }
             
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             
-            // Selected file indicator
-            if (selectedFileName != null) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A4A))
-                ) {
+            // File Selection & Send Area
+            Card(
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceVariant),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    // File Selector
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
+                            .clickable { filePickerLauncher.launch(arrayOf("*/*")) }
+                            .background(AppColors.Background, RoundedCornerShape(12.dp))
+                            .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "📄", fontSize = 20.sp)
+                        Icon(
+                            imageVector = if (selectedFileName != null) Icons.Default.Description else Icons.Default.Add,
+                            contentDescription = null,
+                            tint = if (selectedFileName != null) AppColors.Primary else Color.Gray
+                        )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = selectedFileName ?: "",
-                            color = Color.White,
-                            fontSize = 13.sp,
+                            text = selectedFileName ?: "Select File to Send",
+                            color = if (selectedFileName != null) Color.White else Color.Gray,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
-                        TextButton(
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Buttons
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        // Scan Toggle
+                        Button(
                             onClick = {
-                                selectedFileUri = null
-                                selectedFileName = null
-                                // Status handled by manager
-                            }
+                                if (isDiscovering) engine.stopDiscovery() else {
+                                    scope.launch(Dispatchers.IO) {
+                                        val port = if (receiverPort > 0) receiverPort else 42424
+                                        engine.startDiscovery(port)
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isDiscovering) AppColors.SurfaceLight else AppColors.Surface
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(50.dp)
                         ) {
-                            Text("取消", color = Color(0xFF888888), fontSize = 12.sp)
+                            Text(if (isDiscovering) "Stop" else "Scan")
+                        }
+                        
+                        // Send Action
+                        Button(
+                            onClick = {
+                                if (selectedPeer != null && selectedFileUri != null) {
+                                    scope.launch {
+                                        transferManager.sendFile(selectedFileUri!!, selectedPeer!!, onComplete = { s, e ->
+                                            scope.launch { Toast.makeText(context, if(s) "Sent!" else "Error: $e", Toast.LENGTH_SHORT).show() }
+                                        })
+                                    }
+                                } else {
+                                    Toast.makeText(context, "Select file and peer first", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = AppColors.Primary,
+                                disabledContainerColor = AppColors.Surface
+                            ),
+                            enabled = selectedPeer != null && selectedFileUri != null,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(2f).height(50.dp)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.Send, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("WARP FILE")
                         }
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(8.dp))
             }
-            
-            // File Selection Button (when no file selected)
-            if (selectedFileName == null) {
-                OutlinedButton(
-                    onClick = { filePickerLauncher.launch(arrayOf("*/*")) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, Color(0xFF4A4E69)),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color(0xFF16213E),
-                        contentColor = Color.LightGray
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "选择文件",
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("点击选择文件", fontSize = 14.sp)
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // Transfer Progress
-            if (transferProgress > 0) {
-                LinearProgressIndicator(
-                    progress = transferProgress / 100f,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp)),
-                    color = Color(0xFF6C63FF),
-                    trackColor = Color(0xFF333333),
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-            
-            // Status Text
-            Text(
-                text = statusText,
-                color = Color.Gray,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            
-            // Action Buttons Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Discovery Button
-                Button(
-                    onClick = {
-                        if (isDiscovering) {
-                            engine.stopDiscovery()
-                        } else {
-                            scope.launch(Dispatchers.IO) {
-                                val portToAdvertise = if (receiverPort > 0) receiverPort else 42424
-                                engine.startDiscovery(portToAdvertise)
-                                // Discovery now always succeeds - USB localhost peer is auto-added
-                                withContext(Dispatchers.Main) {
-                                    Toast.makeText(context, "发现已启动（支持手动添加/USB连接）", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isDiscovering) Color(0xFF4A4E69) else Color(0xFF6C63FF)
-                    )
-                ) {
-                    Text(
-                        text = if (isDiscovering) "停止" else "发现设备",
-                        fontSize = 14.sp
-                    )
-                }
-                
-                // Add Manual Peer Button
-                Button(
-                    onClick = { showAddPeerDialog = true },
-                    modifier = Modifier
-                        .height(48.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFF9800)
-                    )
-                ) {
-                    Text(text = "+IP", fontSize = 14.sp)
-                }
-                
-                // Send Button (only enabled when file and peer are selected)
-                Button(
-                    onClick = {
-                        if (selectedPeer == null) {
-                            Toast.makeText(context, "请先选择目标设备", Toast.LENGTH_SHORT).show()
-                        } else if (selectedFileUri == null) {
-                            Toast.makeText(context, "请先选择文件", Toast.LENGTH_SHORT).show()
-                        } else {
-                            scope.launch {
-                                transferManager.sendFile(
-                                    selectedFileUri!!,
-                                    selectedPeer!!,
-                                    onComplete = { success, error ->
-                                        scope.launch {
-                                            if (success) {
-                                                Toast.makeText(context, "发送成功", Toast.LENGTH_SHORT).show()
-                                            } else {
-                                                Toast.makeText(context, error ?: "发送失败", Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4CAF50)
-                    ),
-                    enabled = selectedFileUri != null && selectedPeer != null
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "发送",
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = "发送", fontSize = 14.sp)
-                }
-            }
-        }
         
         // FAB removed to avoid blocking content
+        }
+    }
+    
+    // Incoming Transfer Dialog
+    val pendingTransfer by receiveManager.pendingTransfer.collectAsState()
+    
+    if (pendingTransfer != null) {
+        val transfer = pendingTransfer!!
+        AlertDialog(
+            onDismissRequest = {
+                // Do nothing, force user to choose
+            },
+            containerColor = AppColors.Surface,
+            title = {
+                Text("接收文件请求", color = Color.White)
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "来自: ${transfer.senderName}",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "IP: ${transfer.senderAddress}",
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "文件: ${transfer.fileName}",
+                        color = Color.White
+                    )
+                    Text(
+                        text = "大小: ${transfer.formattedSize}",
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            // Define save path: App-Specific Downloads directory
+                            // This works on all Android versions without extra permissions
+                            val downloadDir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS)
+                            // Fallback to app root if null (rare)
+                            val saveDir = if (downloadDir != null) downloadDir else context.filesDir
+                            
+                            if (!saveDir.exists()) {
+                                saveDir.mkdirs()
+                            }
+                            // Sanitize filename lightly
+                            val safeName = transfer.fileName.replace("[^a-zA-Z0-9._-]".toRegex(), "_")
+                            val savePath = java.io.File(saveDir, safeName).absolutePath
+                            
+                            val success = receiveManager.acceptTransfer(savePath)
+                            if (success) {
+                                Toast.makeText(context, "接收成功: $savePath", Toast.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(context, "接收失败", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                ) {
+                    Text("接收")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        receiveManager.rejectTransfer()
+                    }
+                ) {
+                    Text("拒绝", color = Color(0xFFFF5252))
+                }
+            }
+        )
     }
     
     // Manual Peer Addition Dialog
     if (showAddPeerDialog) {
         AlertDialog(
             onDismissRequest = { showAddPeerDialog = false },
-            containerColor = Color(0xFF16213E),
+            containerColor = AppColors.Surface,
             title = {
                 Text("手动添加设备", color = Color.White)
             },
@@ -542,7 +672,8 @@ fun MainScreen(
 fun PeerItem(
     peer: DiscoveredPeer,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onTestLink: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -551,22 +682,68 @@ fun PeerItem(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) Color(0xFF4A4E69) else Color(0xFF1A1A2E)
+            containerColor = if (isSelected) AppColors.SurfaceLight else AppColors.Surface
         )
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = peer.deviceName,
-                color = Color.White,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = "${peer.ipAddress}:${peer.port}",
-                color = Color.Gray,
-                fontSize = 12.sp
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = peer.deviceName,
+                    color = Color.White,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = peer.displayName,
+                    color = Color.Gray,
+                    fontSize = 12.sp
+                )
+            }
+            
+            IconButton(onClick = onTestLink) {
+                Icon(
+                    imageVector = Icons.Default.Link,
+                    contentDescription = "测试连接",
+                    tint = AppColors.Primary
+                )
+            }
         }
     }
+}
+
+// App Colors
+object AppColors {
+    val Background = Color(0xFF1A1A2E)
+    val Surface = Color(0xFF16213E)
+    val SurfaceLight = Color(0xFF4A4E69)
+    val SurfaceVariant = Color(0xFF2A2A4A)
+    val Primary = Color(0xFF6C63FF)
+    val Secondary = Color(0xFFFF9800)
+    val Success = Color(0xFF4CAF50)
+    val Error = Color(0xFFFF5252)
+}
+
+fun getAllIpAddresses(): List<String> {
+    val ips = mutableListOf<String>()
+    try {
+        val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
+        while (interfaces.hasMoreElements()) {
+            val intf = interfaces.nextElement()
+            if (intf.isLoopback || !intf.isUp) continue
+            
+            val addrs = intf.inetAddresses
+            while (addrs.hasMoreElements()) {
+                val addr = addrs.nextElement()
+                if (addr is java.net.Inet4Address && !addr.isLoopbackAddress) {
+                    ips.add("${intf.displayName}: ${addr.hostAddress}")
+                }
+            }
+        }
+    } catch (_: Exception) {}
+    return ips
 }
