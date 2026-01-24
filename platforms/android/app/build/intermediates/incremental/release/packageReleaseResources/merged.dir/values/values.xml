@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">VoidWarp</string>
-    <style name="Theme.VoidWarp" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">#1A1A2E</item>
-        <item name="android:navigationBarColor">#1A1A2E</item>
-    </style>
-</resources>

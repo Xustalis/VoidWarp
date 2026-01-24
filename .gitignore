@@ -19,3 +19,34 @@ Thumbs.db
 Cargo.lock
 
 .cargo/config.toml
+
+# Build artifacts
+/target/
+/core/target/
+/platforms/windows/bin/
+/platforms/windows/obj/
+/platforms/android/.gradle/
+/platforms/android/app/build/
+/platforms/android/build/
+**/bin/
+**/obj/
+**/.gradle/
+**/build/
+
+# Android outputs
+*.apk
+*.aab
+*.ap_
+
+# Local logs and screenshots
+/android_log.txt
+/android_final_log.txt
+/clippy_log.txt
+/full_log*.txt
+/build_log*.txt
+/build_gradle_error*.txt
+/core/build_error*.txt
+/core/build_errors*.txt
+/android_screen*.png
+/android_screenshot.png
+/android_ui.png

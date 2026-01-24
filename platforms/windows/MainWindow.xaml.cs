@@ -49,6 +49,15 @@ namespace VoidWarp.Windows
                     .Select(ip => ip.ToString());
                 
                 NetworkDebugText.Text = $"Diagnostics: My IPs: {string.Join(", ", ips)} | Port: {_receiveManager.Port}";
+                
+                _receiveManager.StartReceiving();
+                ReceiveStatusPanel.Visibility = Visibility.Visible;
+                ReceiveStatusText.Text = "等待接收文件...";
+                ReceivePortText.Text = $"监听端口: {_receiveManager.Port}";
+                ReceiveModeToggle.IsChecked = true;
+                TransferStatus.Text = "接收模式已开启";
+                
+                StartDiscovery(_receiveManager.Port);
             }
             catch (Exception ex)
             {
@@ -215,7 +224,7 @@ namespace VoidWarp.Windows
 
         private void DiscoverBtn_Click(object sender, RoutedEventArgs e)
         {
-            if (_engine == null) return;
+            if (_engine == null || _receiveManager == null) return;
 
             if (_engine.IsDiscovering)
             {
@@ -223,11 +232,11 @@ namespace VoidWarp.Windows
             }
             else
             {
-                StartDiscovery();
+                StartDiscovery(_receiveManager.Port);
             }
         }
 
-        private void StartDiscovery()
+        private void StartDiscovery(ushort port)
         {
             if (_engine == null || _receiveManager == null) return;
 

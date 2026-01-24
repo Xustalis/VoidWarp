@@ -1,6 +1,0 @@
-com.voidwarp.android.test.app-core-1.5.0-0 C:\Users\X\.gradle\caches\8.9\transforms\5ad2b40eae05e2ce479792ae6e69f7f5\transformed\core-1.5.0\res
-com.voidwarp.android.test.app-annotation-experimental-1.3.0-1 C:\Users\X\.gradle\caches\8.9\transforms\e66ad521401caead7e1c31ef1e77342a\transformed\annotation-experimental-1.3.0\res
-com.voidwarp.android.test.app-androidTest-2 G:\project\VoidWarp\platforms\android\app\build\generated\res\resValues\androidTest\debug
-com.voidwarp.android.test.app-mergeDebugAndroidTestResources-3 G:\project\VoidWarp\platforms\android\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\merged.dir
-com.voidwarp.android.test.app-mergeDebugAndroidTestResources-4 G:\project\VoidWarp\platforms\android\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\stripped.dir
-com.voidwarp.android.test.app-merged_res-5 G:\project\VoidWarp\platforms\android\app\build\intermediates\merged_res\debugAndroidTest

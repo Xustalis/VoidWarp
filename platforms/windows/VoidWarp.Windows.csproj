@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -17,10 +17,6 @@
           Condition="Exists('..\..\target\release\voidwarp_core.dll')" />
   </ItemGroup>
 
-  <!-- Reference for InputBox dialog -->
-  <ItemGroup>
-    <Reference Include="Microsoft.VisualBasic" />
-  </ItemGroup>
 
 </Project>
 
