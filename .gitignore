@@ -12,6 +12,8 @@
 Thumbs.db
 *.exe
 *.dll
+*.so
+*.dylib
 *.pdb
 
 # Rust

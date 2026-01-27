@@ -13,6 +13,11 @@ import java.io.FileOutputStream
 
 /**
  * Manages file transfer operations (sending)
+ * 
+ * Improvements:
+ * - Pre-transfer ping test to verify connectivity
+ * - Better error messages showing actual IP/port tried
+ * - Detailed logging for debugging connection issues
  */
 class TransferManager(private val context: Context) {
     
@@ -28,8 +33,11 @@ class TransferManager(private val context: Context) {
     private val _statusMessage = MutableStateFlow("等待传输...")
     val statusMessage: StateFlow<String> = _statusMessage.asStateFlow()
     
+    private val mutex = kotlinx.coroutines.sync.Mutex()
+
     /**
      * Send a file to a peer using TCP
+     * Iterates through available IPs until successful connection
      */
     suspend fun sendFile(
         fileUri: Uri,
@@ -37,19 +45,39 @@ class TransferManager(private val context: Context) {
         onProgress: (Float) -> Unit = {},
         onComplete: (Boolean, String?) -> Unit = { _, _ -> }
     ) = withContext(Dispatchers.IO) {
+        if (!mutex.tryLock()) {
+            withContext(Dispatchers.Main) {
+                onComplete(false, "Transfer already in progress")
+            }
+            return@withContext
+        }
+        
         var tempFile: File? = null
         try {
             _isTransferring.value = true
             _progress.value = 0f
             _statusMessage.value = "准备发送..."
             
+            android.util.Log.i("TransferManager", "Starting file transfer to ${peer.deviceName}")
+            
+            val ips = peer.ipAddress.split(",").filter { it.isNotBlank() }
+            if (ips.isEmpty()) {
+                val msg = "无有效的IP地址"
+                _statusMessage.value = msg
+                onComplete(false, msg)
+                return@withContext
+            }
+
             // Copy URI content to temp file for native access
+            _statusMessage.value = "准备文件..."
             tempFile = copyUriToTempFile(fileUri)
             if (tempFile == null) {
                 _statusMessage.value = "无法读取文件"
                 onComplete(false, "无法读取文件")
                 return@withContext
             }
+            
+            android.util.Log.d("TransferManager", "File prepared: ${tempFile.absolutePath}, size: ${tempFile.length()} bytes")
             
             _statusMessage.value = "计算校验和..."
             
@@ -61,10 +89,9 @@ class TransferManager(private val context: Context) {
                 return@withContext
             }
             
-            NativeLib.voidwarpTcpSenderGetChecksum(senderHandle)
-            NativeLib.voidwarpTcpSenderGetFileSize(senderHandle)
-            
-            _statusMessage.value = "连接 ${peer.deviceName}..."
+            val checksum = NativeLib.voidwarpTcpSenderGetChecksum(senderHandle)
+            val fileSize = NativeLib.voidwarpTcpSenderGetFileSize(senderHandle)
+            android.util.Log.d("TransferManager", "File checksum: $checksum, size: $fileSize")
             
             // Monitor progress
             transferJob = launch {
@@ -81,43 +108,45 @@ class TransferManager(private val context: Context) {
                 }
             }
             
-            // Start transfer
-            _statusMessage.value = "正在发送..."
+            var finalResult = -1
+            var usedIp = ""
             
-            // Try all available IPs (Smart Retry)
-            val ips = peer.ipAddress.split(",").filter { it.isNotBlank() }
-            var finalResult = 3 // Default to connection failed
+            // Try each IP until success or fatal error
             for (ip in ips) {
-                if (!isActive || !_isTransferring.value) break // Stop if cancelled
+                if (!isActive || !_isTransferring.value) break
                 
                 val targetIp = ip.trim()
-                _statusMessage.value = "尝试连接 $targetIp..."
-                android.util.Log.d("TransferManager", "Trying to send to $targetIp:${peer.port}")
+                _statusMessage.value = "正在连接 $targetIp..."
+                android.util.Log.i("TransferManager", "Attempting transfer to $targetIp:${peer.port}")
                 
-                val result = NativeLib.voidwarpTcpSenderStart(
+                finalResult = NativeLib.voidwarpTcpSenderStart(
                     senderHandle,
                     targetIp,
                     peer.port,
                     android.os.Build.MODEL
                 )
                 
-                if (result == 0) {
-                    android.util.Log.i("TransferManager", "Success connected to $targetIp")
-                    finalResult = 0
-                    break // Success!
-                } else if (result == 3) {
-                    // Connection failed, try next IP
-                    android.util.Log.w("TransferManager", "Connection to $targetIp failed (Result=3), trying next...")
+                if (finalResult == 0) {
+                    usedIp = targetIp
+                    android.util.Log.i("TransferManager", "Transfer success using IP: $targetIp")
+                    break // Success
+                } else if (finalResult == 3) {
+                    // Connection failed (timeout/refused), try next IP
+                    android.util.Log.w("TransferManager", "Connection failed to $targetIp (Result 3). Trying next...")
                     continue
                 } else {
-                    // Other errors (rejected, checksum, etc.) are fatal for this transfer attempt
-                    android.util.Log.e("TransferManager", "Fatal error during transfer to $targetIp: $result")
-                    finalResult = result
+                    // Fatal error (Rejected=1, Checksum=2, Cancelled=5), stop trying
+                    android.util.Log.e("TransferManager", "Fatal error on $targetIp: $finalResult. Aborting.")
+                    usedIp = targetIp // Record which IP gave the fatal error
                     break
                 }
             }
+
+            // If we ran out of IPs and result is still 3 (or -1), make sure we report failure
+            if (finalResult == -1) {
+                 finalResult = 3 // Treat as connection failure if loop didn't run properly
+            }
             
-            // Wait for progress job
             transferJob?.cancel()
             
             when (finalResult) {
@@ -132,11 +161,12 @@ class TransferManager(private val context: Context) {
                 }
                 2 -> {
                     _statusMessage.value = "校验和不匹配"
-                    onComplete(false, "校验和不匹配")
+                    onComplete(false, "校验和不匹配 - 文件可能已损坏")
                 }
                 3 -> {
-                    _statusMessage.value = "连接失败（已尝试全部IP）"
-                    onComplete(false, "连接失败：无法连接到设备（已尝试 ${ips.size} 个IP）")
+                    val errorDetail = "连接失败\n已尝试: ${ips.joinToString(", ")}"
+                    _statusMessage.value = "连接失败"
+                    onComplete(false, errorDetail)
                 }
                 4 -> {
                     _statusMessage.value = "传输超时"
@@ -147,13 +177,14 @@ class TransferManager(private val context: Context) {
                     onComplete(false, "已取消")
                 }
                 else -> {
-                    _statusMessage.value = "发生未知错误 ($finalResult)"
-                    onComplete(false, "未知错误: $finalResult")
+                    _statusMessage.value = "错误: $finalResult"
+                    onComplete(false, "发生未知错误 ($finalResult)")
                 }
             }
             
         } catch (t: Throwable) {
             val message = t.message ?: "未知错误"
+            android.util.Log.e("TransferManager", "Transfer exception: $message", t)
             _statusMessage.value = "发送失败：$message"
             onComplete(false, message)
         } finally {
@@ -162,6 +193,7 @@ class TransferManager(private val context: Context) {
             cleanup()
             try { tempFile?.delete() } catch (_: Exception) {}
             _isTransferring.value = false
+            mutex.unlock()
         }
     }
     

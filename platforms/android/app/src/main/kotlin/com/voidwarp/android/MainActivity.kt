@@ -156,8 +156,19 @@ fun MainScreen(
     var manualPort by remember { mutableStateOf("42424") }
     
     // Collect manager states
-    val isReceiveMode by receiveManager.state.collectAsState()
+    val receiverState by receiveManager.state.collectAsState()
     val receiverPort by receiveManager.port.collectAsState()
+    
+    // CRITICAL: Auto-initialize receiver on first launch
+    // This ensures the receiver port is ready before discovery can start
+    LaunchedEffect(Unit) {
+        android.util.Log.d("MainScreen", "Initializing receiver on first launch...")
+        if (receiverState == ReceiverState.IDLE) {
+            // Initialize receiver first to get the port
+            receiveManager.startReceiving()
+            android.util.Log.d("MainScreen", "Receiver started on port: ${receiveManager.port.value}")
+        }
+    }
     
     // File picker launcher
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -186,7 +197,7 @@ fun MainScreen(
         }
     }
     
-    // Auto-refresh peers
+    // Auto-refresh peers while discovering
     LaunchedEffect(isDiscovering) {
         while (isDiscovering) {
             engine.refreshPeers()
@@ -258,7 +269,7 @@ fun MainScreen(
                         modifier = Modifier
                             .size(40.dp)
                             .background(
-                                if (isReceiveMode != ReceiverState.IDLE) AppColors.Success.copy(alpha = 0.2f) 
+                                if (receiverState != ReceiverState.IDLE) AppColors.Success.copy(alpha = 0.2f) 
                                 else AppColors.SurfaceVariant, 
                                 CircleShape
                             ),
@@ -267,7 +278,7 @@ fun MainScreen(
                         Icon(
                             imageVector = Icons.Default.Description, // Using Description as generic 'File' icon proxy
                             contentDescription = null,
-                            tint = if (isReceiveMode != ReceiverState.IDLE) AppColors.Success else Color.Gray
+                            tint = if (receiverState != ReceiverState.IDLE) AppColors.Success else Color.Gray
                         )
                     }
                     
@@ -275,19 +286,19 @@ fun MainScreen(
                     
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (isReceiveMode != ReceiverState.IDLE) "接收准备就绪" else "接收模式已关闭",
+                            text = if (receiverState != ReceiverState.IDLE) "接收准备就绪" else "接收模式已关闭",
                             fontWeight = FontWeight.SemiBold,
                             color = Color.White
                         )
                         Text(
-                            text = if (isReceiveMode != ReceiverState.IDLE) "端口 $receiverPort 可见" else "点击开关启用",
+                            text = if (receiverState != ReceiverState.IDLE) "端口 $receiverPort 可见" else "点击开关启用",
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
                     }
                     
                     Switch(
-                        checked = isReceiveMode != ReceiverState.IDLE,
+                        checked = receiverState != ReceiverState.IDLE,
                         onCheckedChange = { checked ->
                             if (checked) receiveManager.startReceiving() else receiveManager.stopReceiving()
                         },
@@ -463,10 +474,30 @@ fun MainScreen(
                         // Scan Toggle
                         Button(
                             onClick = {
-                                if (isDiscovering) engine.stopDiscovery() else {
+                                if (isDiscovering) {
+                                    engine.stopDiscovery()
+                                } else {
                                     scope.launch(Dispatchers.IO) {
-                                        val port = if (receiverPort > 0) receiverPort else 42424
-                                        engine.startDiscovery(port)
+                                        // CRITICAL: Ensure receiver is started first to get the correct port
+                                        if (receiverState == ReceiverState.IDLE) {
+                                            android.util.Log.d("MainScreen", "Starting receiver before discovery...")
+                                            withContext(Dispatchers.Main) {
+                                                receiveManager.startReceiving()
+                                            }
+                                            // Wait a bit for the receiver to bind the port
+                                            delay(200)
+                                        }
+                                        
+                                        // Get the actual receiver port
+                                        val actualPort = receiveManager.port.value
+                                        android.util.Log.d("MainScreen", "Starting discovery with receiver port: $actualPort")
+                                        
+                                        if (actualPort <= 0) {
+                                            android.util.Log.e("MainScreen", "Invalid receiver port, using default 42424")
+                                        }
+                                        
+                                        val portToUse = if (actualPort > 0) actualPort else 42424
+                                        engine.startDiscovery(portToUse)
                                     }
                                 }
                             },

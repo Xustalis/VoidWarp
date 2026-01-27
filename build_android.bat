@@ -7,9 +7,11 @@ echo ========================================
 
 :: Check for NDK configuration
 if not exist ".cargo\config.toml" (
-    echo Error: .cargo\config.toml not found!
-    echo Please verify NDK configuration.
-    exit /b 1
+    if not exist "core\.cargo\config.toml" (
+        echo Error: .cargo\config.toml not found in root or core\!
+        echo Please verify NDK configuration.
+        exit /b 1
+    )
 )
 
 :: Build ARM64 (Device)

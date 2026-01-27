@@ -50,6 +50,11 @@ data class PendingTransfer(
 
 /**
  * Manages file receiving operations
+ * 
+ * Key improvements:
+ * - isInitialized property to check if receiver is ready
+ * - Better logging for debugging connection issues
+ * - Port is immediately available after initialize() succeeds
  */
 class ReceiveManager {
     
@@ -72,52 +77,79 @@ class ReceiveManager {
     private val _bytesReceived = MutableStateFlow(0L)
     val bytesReceived: StateFlow<Long> = _bytesReceived.asStateFlow()
     
+    private val _isInitialized = MutableStateFlow(false)
+    val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
+    
     /**
-     * Initialize the receiver
+     * Check if receiver is ready to accept connections
+     */
+    val isReady: Boolean
+        get() = receiverHandle != 0L && _port.value > 0
+    
+    /**
+     * Initialize the receiver - must be called before startReceiving
+     * Creates the native receiver and binds to a port
      */
     fun initialize(): Boolean {
-        if (receiverHandle != 0L) return true
+        if (receiverHandle != 0L) {
+            android.util.Log.d("ReceiveManager", "Already initialized on port ${_port.value}")
+            return true
+        }
         
         return try {
-            android.util.Log.d("ReceiveManager", "Creating receiver...")
+            android.util.Log.d("ReceiveManager", "Creating native receiver...")
             receiverHandle = NativeLib.voidwarpCreateReceiver()
+            
             if (receiverHandle == 0L) {
                 android.util.Log.e("ReceiveManager", "Failed to create receiver (null handle)")
+                _isInitialized.value = false
                 return false
             }
             
             _port.value = NativeLib.voidwarpReceiverGetPort(receiverHandle)
+            
             if (_port.value <= 0) {
+                android.util.Log.e("ReceiveManager", "Invalid port returned: ${_port.value}")
                 NativeLib.voidwarpDestroyReceiver(receiverHandle)
                 receiverHandle = 0
+                _isInitialized.value = false
                 return false
             }
-            android.util.Log.d("ReceiveManager", "Receiver created on port: ${_port.value}")
+            
+            _isInitialized.value = true
+            android.util.Log.i("ReceiveManager", "Receiver initialized successfully on port: ${_port.value}")
             true
         } catch (t: Throwable) {
             android.util.Log.e("ReceiveManager", "Exception creating receiver: ${t.message}", t)
+            _isInitialized.value = false
             false
         }
     }
     
     /**
      * Start listening for incoming transfers
+     * Automatically calls initialize() if not already done
      */
     fun startReceiving() {
         try {
-            if (receiverHandle == 0L && !initialize()) {
-                _state.value = ReceiverState.ERROR
-                return
+            // Initialize if not already done
+            if (receiverHandle == 0L) {
+                android.util.Log.d("ReceiveManager", "Not initialized, calling initialize()...")
+                if (!initialize()) {
+                    android.util.Log.e("ReceiveManager", "Failed to initialize receiver")
+                    _state.value = ReceiverState.ERROR
+                    return
+                }
             }
             
-            android.util.Log.d("ReceiveManager", "Starting receiver...")
+            android.util.Log.i("ReceiveManager", "Starting receiver on port ${_port.value}...")
             NativeLib.voidwarpReceiverStart(receiverHandle)
-            val started = NativeLib.voidwarpTransportStartServer(_port.value)
-            if (!started) {
-                _state.value = ReceiverState.ERROR
-                return
-            }
+            
+            // Note: FileReceiverServer already binds to the port internally,
+            // so we don't need to call voidwarpTransportStartServer here.
+            // That would cause a port conflict and fail.
             _state.value = ReceiverState.LISTENING
+            android.util.Log.i("ReceiveManager", "Receiver now LISTENING on port ${_port.value}")
             
             startPolling()
         } catch (t: Throwable) {
@@ -130,18 +162,23 @@ class ReceiveManager {
      * Stop listening
      */
     fun stopReceiving() {
+        android.util.Log.d("ReceiveManager", "Stopping receiver...")
+        
         pollingJob?.cancel()
         pollingJob = null
         
         if (receiverHandle != 0L) {
             try {
                 NativeLib.voidwarpReceiverStop(receiverHandle)
-            } catch (_: Throwable) {
+            } catch (t: Throwable) {
+                android.util.Log.w("ReceiveManager", "Error stopping receiver: ${t.message}")
             }
         }
         
         _state.value = ReceiverState.IDLE
         _pendingTransfer.value = null
+        
+        android.util.Log.d("ReceiveManager", "Receiver stopped")
     }
     
     /**
@@ -204,20 +241,29 @@ class ReceiveManager {
     private fun startPolling() {
         pollingJob?.cancel()
         pollingJob = scope.launch {
+            android.util.Log.d("ReceiveManager", "Polling loop started")
+            
             while (isActive) {
-                if (receiverHandle == 0L) break
+                if (receiverHandle == 0L) {
+                    android.util.Log.w("ReceiveManager", "Polling stopped: receiver handle is null")
+                    break
+                }
                 
                 try {
                     val nativeState = NativeLib.voidwarpReceiverGetState(receiverHandle)
                     val newState = ReceiverState.fromInt(nativeState)
                     
                     if (newState != _state.value) {
+                        android.util.Log.d("ReceiveManager", "State changed: ${_state.value} -> $newState")
                         _state.value = newState
                     }
                     
                     if (newState == ReceiverState.AWAITING_ACCEPT) {
                         val pending = NativeLib.voidwarpReceiverGetPending(receiverHandle)
                         if (pending != null && _pendingTransfer.value == null) {
+                            android.util.Log.i("ReceiveManager", 
+                                "Incoming transfer: ${pending.fileName} (${pending.fileSize} bytes) from ${pending.senderName} @ ${pending.senderAddress}")
+                            
                             _pendingTransfer.value = PendingTransfer(
                                 senderName = pending.senderName,
                                 senderAddress = pending.senderAddress,
@@ -231,13 +277,25 @@ class ReceiveManager {
                         _progress.value = NativeLib.voidwarpReceiverGetProgress(receiverHandle)
                         _bytesReceived.value = NativeLib.voidwarpReceiverGetBytesReceived(receiverHandle)
                     }
-                } catch (_: Throwable) {
+                    
+                    // Automatically restart listening after completed transfer
+                    if (newState == ReceiverState.COMPLETED) {
+                        android.util.Log.i("ReceiveManager", "Transfer completed, restarting listener...")
+                        _pendingTransfer.value = null
+                        delay(500) // Brief pause before restarting
+                        startReceiving()
+                        break // Exit current polling loop, new one will start
+                    }
+                } catch (t: Throwable) {
+                    android.util.Log.e("ReceiveManager", "Polling error: ${t.message}", t)
                     _state.value = ReceiverState.ERROR
                     break
                 }
                 
                 delay(200)
             }
+            
+            android.util.Log.d("ReceiveManager", "Polling loop ended")
         }
     }
     

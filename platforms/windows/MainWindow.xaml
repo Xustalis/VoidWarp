@@ -1,4 +1,4 @@
-﻿<Window x:Class="VoidWarp.Windows.MainWindow"
+<Window x:Class="VoidWarp.Windows.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="VoidWarp" Height="600" Width="900"
@@ -38,6 +38,8 @@
             <Setter Property="CornerRadius" Value="12"/>
             <Setter Property="Padding" Value="20"/>
         </Style>
+
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
     </Window.Resources>
     
     <Grid Margin="20">
@@ -59,52 +61,60 @@
                 <!-- Header -->
                 <StackPanel Grid.Row="0">
                     <TextBlock Text="VoidWarp" FontSize="24" FontWeight="Bold" Foreground="#6c63ff"/>
-                    <TextBlock x:Name="DeviceIdText" Text="Device ID: Loading..." Foreground="#888" FontSize="11" Margin="0,5,0,0"/>
+                    <TextBlock Text="{Binding DeviceIdText}" Foreground="#888" FontSize="11" Margin="0,5,0,0"/>
+                    <TextBlock Text="{Binding LocalNetworkText}" Foreground="#666" FontSize="10" Margin="0,4,0,0" TextWrapping="Wrap"/>
                 </StackPanel>
                 
                 <!-- Discovery Status -->
                 <StackPanel Grid.Row="1" Margin="0,15,0,10">
                     <StackPanel Orientation="Horizontal">
-                        <Ellipse x:Name="StatusIndicator" Width="10" Height="10" Fill="#888" Margin="0,0,8,0"/>
-                        <TextBlock x:Name="StatusText" Text="未开始发现" Foreground="#aaa" FontSize="12"/>
+                        <Ellipse Width="10" Height="10" Fill="{Binding DiscoveryStatusColor}" Margin="0,0,8,0"/>
+                        <TextBlock Text="{Binding DiscoveryStatusText}" Foreground="#aaa" FontSize="12"/>
                     </StackPanel>
+                    <TextBlock Text="{Binding DiscoveryDetailText}" Foreground="#666" FontSize="10" Margin="18,4,0,0" TextWrapping="Wrap"/>
                 </StackPanel>
                 
                 <!-- Device List -->
-                <ListBox x:Name="DeviceList" Grid.Row="2" 
+                <ListBox Grid.Row="2" 
                          Background="Transparent" BorderThickness="0"
-                         Foreground="White" FontSize="13">
+                         Foreground="White" FontSize="13"
+                         ItemsSource="{Binding Peers}"
+                         SelectedItem="{Binding SelectedPeer, Mode=TwoWay}">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <StackPanel Margin="5">
-                                <TextBlock Text="{Binding DeviceName}" FontWeight="SemiBold"/>
-                                <TextBlock Text="{Binding IpAddress}" Foreground="#888" FontSize="11"/>
-                            </StackPanel>
+                            <Grid Margin="4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding DeviceName}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding DisplayName}" Foreground="#888" FontSize="11"/>
+                                </StackPanel>
+                                <Button Grid.Column="1"
+                                        Content="测试"
+                                        Margin="8,0,0,0"
+                                        Padding="8,2"
+                                        Background="#2a2a4a"
+                                        Foreground="White"
+                                        BorderThickness="0"
+                                        Command="{Binding DataContext.TestConnectionCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                        CommandParameter="{Binding}"/>
+                            </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
                 
                 <!-- Actions -->
                 <StackPanel Grid.Row="3" Margin="0,10,0,0">
-                    <Button x:Name="DiscoverBtn" Content="开始发现设备" Style="{StaticResource ModernButton}" Click="DiscoverBtn_Click"/>
+                    <Button Content="{Binding DiscoveryButtonText}" Style="{StaticResource ModernButton}" Command="{Binding ToggleDiscoveryCommand}"/>
                     
                     <!-- Manual Connect Area -->
                     <TextBlock Text="手动连接" Foreground="#888" FontSize="12" Margin="0,15,0,5"/>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBox x:Name="ManualIpBox" Height="30" VerticalContentAlignment="Center" Padding="5,0" 
-                                 Background="#2a2a4a" Foreground="White" BorderThickness="0" 
-                                 Text="192.168."/>
-                        <Button Grid.Column="1" Content="+" Width="30" Height="30" Margin="5,0,0,0"
-                                Background="#6c63ff" Foreground="White" BorderThickness="0"
-                                Click="ManualAddBtn_Click"/>
-                    </Grid>
+                    <Button Content="手动添加设备" Style="{StaticResource ModernButton}" Command="{Binding ManualAddCommand}"/>
                     
-                    <Button x:Name="OpenDownloadsBtn" Content="📂 打开接收文件夹" Style="{StaticResource ModernButton}" 
-                            Background="#333" Margin="0,15,0,0" FontSize="12" Padding="10,8" Click="OpenDownloadsBtn_Click"/>
+                    <Button Content="📂 打开接收文件夹" Style="{StaticResource ModernButton}" 
+                            Background="#333" Margin="0,15,0,0" FontSize="12" Padding="10,8" Command="{Binding OpenDownloadsCommand}"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -129,36 +139,38 @@
                     <TextBlock Text="文件传输" FontSize="18" FontWeight="SemiBold" Foreground="White"/>
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
                         <TextBlock Text="接收模式" Foreground="#888" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <CheckBox x:Name="ReceiveModeToggle" 
-                                  Checked="ReceiveModeToggle_Checked" 
-                                  Unchecked="ReceiveModeToggle_Unchecked"/>
+                        <CheckBox IsChecked="{Binding IsReceiveModeEnabled}"/>
                     </StackPanel>
                 </Grid>
                 
                 <!-- Receive Status (visible when receiving is enabled) -->
-                <Border x:Name="ReceiveStatusPanel" Grid.Row="1" Background="#2a2a4a" CornerRadius="8" 
-                        Margin="0,10,0,0" Padding="12" Visibility="Collapsed">
+                <Border Grid.Row="1" Background="#2a2a4a" CornerRadius="8" 
+                        Margin="0,10,0,0" Padding="12"
+                        Visibility="{Binding IsReceiveModeEnabled, Converter={StaticResource BoolToVisibility}}">
                     <StackPanel>
-                        <TextBlock x:Name="ReceiveStatusText" Text="等待接收文件..." Foreground="#6c63ff" FontSize="12"/>
-                        <TextBlock x:Name="ReceivePortText" Text="监听端口: -" Foreground="#666" FontSize="11" Margin="0,4,0,0"/>
+                        <TextBlock Text="{Binding ReceiveStatusText}" Foreground="#6c63ff" FontSize="12"/>
+                        <TextBlock Text="{Binding ReceivePortText}" Foreground="#666" FontSize="11" Margin="0,4,0,0"/>
                     </StackPanel>
                 </Border>
                 
                 <!-- Incoming Transfer Notification -->
-                <Border x:Name="IncomingTransferPanel" Grid.Row="2" Background="#3a3a5a" CornerRadius="12" 
-                        Margin="0,15" Padding="20" Visibility="Collapsed" VerticalAlignment="Center">
+                <Border Grid.Row="2" Background="#3a3a5a" CornerRadius="12" 
+                        Margin="0,15" Padding="20" VerticalAlignment="Center"
+                        Visibility="{Binding IncomingTransferVisible, Converter={StaticResource BoolToVisibility}}">
                     <StackPanel>
                         <TextBlock Text="📥 收到文件传输请求" FontSize="16" Foreground="#6c63ff" FontWeight="SemiBold"/>
                         <StackPanel Margin="0,12,0,0">
-                            <TextBlock x:Name="IncomingFileName" Text="文件: example.txt" Foreground="White" FontSize="13"/>
-                            <TextBlock x:Name="IncomingFileSize" Text="大小: 1.5 MB" Foreground="#aaa" FontSize="12" Margin="0,4,0,0"/>
-                            <TextBlock x:Name="IncomingSender" Text="来自: Unknown Device" Foreground="#888" FontSize="11" Margin="0,4,0,0"/>
+                            <TextBlock Text="{Binding IncomingFileName}" Foreground="White" FontSize="13"/>
+                            <TextBlock Text="{Binding IncomingFileSize}" Foreground="#aaa" FontSize="12" Margin="0,4,0,0"/>
+                            <TextBlock Text="{Binding IncomingSender}" Foreground="#888" FontSize="11" Margin="0,4,0,0"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,16,0,0" HorizontalAlignment="Center">
-                            <Button x:Name="AcceptBtn" Content="接受" Style="{StaticResource ModernButton}" 
-                                    Background="#4caf50" Margin="0,0,10,0" Click="AcceptBtn_Click"/>
-                            <Button x:Name="RejectBtn" Content="拒绝" Style="{StaticResource ModernButton}" 
-                                    Background="#f44336" Click="RejectBtn_Click"/>
+                            <Button Content="接受" Style="{StaticResource ModernButton}" 
+                                    Background="#4caf50" Margin="0,0,10,0"
+                                    Command="{Binding AcceptTransferCommand}"/>
+                            <Button Content="拒绝" Style="{StaticResource ModernButton}" 
+                                    Background="#f44336"
+                                    Command="{Binding RejectTransferCommand}"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -166,7 +178,8 @@
                 <!-- Drop Zone (visible when not receiving) -->
                 <Border x:Name="DropZone" Grid.Row="2" BorderBrush="#4a4e69" BorderThickness="2" CornerRadius="12" 
                         Margin="0,15" Background="#1a1a2e" 
-                        AllowDrop="True" Drop="DropZone_Drop" DragOver="DropZone_DragOver">
+                        AllowDrop="True" Drop="DropZone_Drop" DragOver="DropZone_DragOver"
+                        Visibility="{Binding DropZoneVisible, Converter={StaticResource BoolToVisibility}}">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <TextBlock Text="📁" FontSize="48" HorizontalAlignment="Center"/>
                         <TextBlock Text="拖拽文件到此处发送" FontSize="16" Foreground="#888" Margin="0,10,0,0"/>
@@ -176,15 +189,25 @@
                 
                 <!-- Transfer Progress -->
                 <StackPanel Grid.Row="3">
-                    <TextBlock x:Name="TransferStatus" Text="等待传输..." Foreground="#888" FontSize="12"/>
-                    <ProgressBar x:Name="TransferProgress" Height="6" Margin="0,8,0,0" 
-                                 Background="#333" Foreground="#6c63ff" Value="0"/>
+                    <TextBlock Text="{Binding TransferStatusText}" Foreground="#888" FontSize="12"/>
+                    <ProgressBar Height="6" Margin="0,8,0,0" 
+                                 Background="#333" Foreground="#6c63ff"
+                                 Value="{Binding TransferProgress}"/>
                 </StackPanel>
                 
                 <!-- Diagnostic Footer -->
-                <TextBlock x:Name="NetworkDebugText" Grid.Row="4" 
-                           Text="Network: Loading..." Foreground="#555" FontSize="10" 
-                           Margin="0,15,0,0" TextWrapping="Wrap"/>
+                <Grid Grid.Row="4" Margin="0,15,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding LocalNetworkText}" Foreground="#555" FontSize="10" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Content="🔧 诊断" 
+                            Background="#2a2a4a" Foreground="#888" BorderThickness="0" 
+                            FontSize="10" Padding="8,4" Margin="8,0,0,0"
+                            Command="{Binding ShowNetworkDiagnosticsCommand}"
+                            ToolTip="网络诊断与防火墙设置"/>
+                </Grid>
             </Grid>
         </Border>
     </Grid>

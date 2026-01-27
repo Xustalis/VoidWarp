@@ -302,7 +302,7 @@ impl TcpFileSender {
     fn send_handshake(&self, stream: &mut TcpStream, sender_name: &str) -> std::io::Result<()> {
         // Protocol:
         // [sender_name_len: u8][sender_name][file_name_len: u16 BE][file_name]
-        // [file_size: u64 BE][checksum_len: u8][checksum: 32 bytes hex]
+        // [file_size: u64 BE][chunk_size: u32 BE][checksum_len: u8][checksum: 32 bytes hex]
 
         let sender_bytes = sender_name.as_bytes();
         let file_name = self.file_name();
@@ -319,6 +319,9 @@ impl TcpFileSender {
 
         // File size
         stream.write_all(&self.file_size.to_be_bytes())?;
+
+        // Chunk size (NEW)
+        stream.write_all(&(self.chunk_size as u32).to_be_bytes())?;
 
         // Checksum
         stream.write_all(&[checksum_bytes.len() as u8])?;
@@ -341,11 +344,17 @@ impl TcpFileSender {
         stream.write_all(&(data.len() as u32).to_be_bytes())?;
         stream.write_all(data)?;
 
-        // Convert hex checksum to bytes (first 16 chars = 8 bytes)
-        let checksum_bytes: Vec<u8> = (0..std::cmp::min(16, checksum.len()))
+        // Convert hex checksum to bytes (full 16 bytes/128 bits)
+        let checksum_bytes: Vec<u8> = (0..checksum.len())
             .step_by(2)
             .filter_map(|i| u8::from_str_radix(&checksum[i..i + 2], 16).ok())
             .collect();
+        
+        // Ensure we send exactly 16 bytes
+        if checksum_bytes.len() != 16 {
+             return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid checksum length"));
+        }
+        
         stream.write_all(&checksum_bytes)?;
 
         stream.flush()?;

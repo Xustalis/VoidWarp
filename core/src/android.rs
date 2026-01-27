@@ -4,7 +4,7 @@
 use crate::discovery::{DiscoveredPeer, DiscoveryManager};
 use crate::ffi;
 use jni::objects::{JClass, JObject, JString, JValue};
-use jni::sys::{jint, jlong, jobject, jobjectArray, jstring};
+use jni::sys::{jboolean, jint, jlong, jobject, jobjectArray, jstring};
 use jni::JNIEnv;
 use std::ffi::{CStr, CString};
 
