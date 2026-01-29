@@ -80,16 +80,35 @@ namespace VoidWarp.Windows.ViewModels
                 {
                     OnPropertyChanged(nameof(ReceiverStatusText));
                     OnPropertyChanged(nameof(ReceiverPort));
+                    OnPropertyChanged(nameof(ReceiveStatusTitle));
+                    OnPropertyChanged(nameof(ReceiveStatusSubtitle));
                 }
             }
         }
 
         /// <summary>
-        /// Display text for receiver status.
+        /// Display text for receiver status (matches Android).
         /// </summary>
         public string ReceiverStatusText => IsReceiving 
             ? $"Listening on port {ReceiverPort}" 
             : "Receiver disabled";
+
+        /// <summary>
+        /// Receive card title (matches Android: 接收准备就绪 / 接收模式已关闭).
+        /// </summary>
+        public string ReceiveStatusTitle => IsReceiving ? "接收准备就绪" : "接收模式已关闭";
+
+        /// <summary>
+        /// Receive card subtitle (matches Android: 端口 X 可见 / 点击开关启用).
+        /// </summary>
+        public string ReceiveStatusSubtitle => IsReceiving 
+            ? $"端口 {ReceiverPort} 可见" 
+            : "点击开关启用";
+
+        /// <summary>
+        /// True when there are no discovered peers (for empty state visibility).
+        /// </summary>
+        public bool HasNoPeers => Peers.Count == 0;
 
         /// <summary>
         /// True if discovery is running.
@@ -103,14 +122,20 @@ namespace VoidWarp.Windows.ViewModels
                 {
                     OnPropertyChanged(nameof(ScanButtonText));
                     OnPropertyChanged(nameof(DiscoveryStatusText));
+                    OnPropertyChanged(nameof(DiscoveryStatusLabel));
                 }
             }
         }
 
         /// <summary>
-        /// Text for the scan button.
+        /// Discovery status for diagnostic card (matches Android: 进行中 / 空闲).
         /// </summary>
-        public string ScanButtonText => IsDiscovering ? "Stop" : "Scan";
+        public string DiscoveryStatusLabel => IsDiscovering ? "进行中" : "空闲";
+
+        /// <summary>
+        /// Text for the scan button (matches Android).
+        /// </summary>
+        public string ScanButtonText => IsDiscovering ? "停止" : "扫描";
 
         /// <summary>
         /// Discovery status text for display.
@@ -175,10 +200,10 @@ namespace VoidWarp.Windows.ViewModels
         }
 
         /// <summary>
-        /// Just the filename of the selected file.
+        /// Just the filename of the selected file (matches Android placeholder).
         /// </summary>
         public string SelectedFileName => string.IsNullOrEmpty(SelectedFilePath)
-            ? "No file selected"
+            ? "选择要发送的文件"
             : Path.GetFileName(SelectedFilePath);
 
         /// <summary>
@@ -189,7 +214,7 @@ namespace VoidWarp.Windows.ViewModels
             get
             {
                 if (string.IsNullOrEmpty(SelectedFilePath) || !File.Exists(SelectedFilePath))
-                    return "No file selected";
+                    return "选择要发送的文件";
                 
                 try
                 {
@@ -240,14 +265,14 @@ namespace VoidWarp.Windows.ViewModels
         public bool CanSend => HasFileSelected && HasPeerSelected && !IsSending;
 
         /// <summary>
-        /// Local IP addresses info for display.
+        /// Local IP addresses info for display (matches Android: 本机IP).
         /// </summary>
         public string LocalIpInfo
         {
             get
             {
                 var ips = VoidWarpEngine.GetAllLocalIpAddresses();
-                return ips.Count > 0 ? string.Join(" | ", ips) : "No network";
+                return ips.Count > 0 ? string.Join(" | ", ips) : "无";
             }
         }
 
@@ -315,7 +340,8 @@ namespace VoidWarp.Windows.ViewModels
             if (!_engine.IsInitialized)
             {
                 AddLog($"WARNING: Engine not initialized - {_engine.NativeLoadError ?? "unknown error"}");
-                StatusMessage = "DLL not loaded!";
+                AddLog("请从项目根目录运行 build_windows.bat 以先构建 Rust 核心，或将 voidwarp_core.dll 复制到本程序所在目录。");
+                StatusMessage = "voidwarp_core.dll 未找到，请先构建或复制 DLL";
             }
             else
             {
@@ -597,13 +623,15 @@ namespace VoidWarp.Windows.ViewModels
                     SelectedPeer = e.Peers.Find(p => p.DeviceId == selectedId);
                 }
 
+                OnPropertyChanged(nameof(HasNoPeers));
+
                 if (e.Count > 0)
                 {
-                    StatusMessage = $"Found {e.Count} device(s)";
+                    StatusMessage = $"发现 {e.Count} 台设备";
                 }
                 else if (IsDiscovering)
                 {
-                    StatusMessage = "Scanning...";
+                    StatusMessage = "正在扫描...";
                 }
             });
         }

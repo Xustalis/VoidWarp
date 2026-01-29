@@ -9,11 +9,11 @@ use std::os::raw::c_char;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::ptr;
 use std::sync::{Mutex, OnceLock};
-use std::{net::IpAddr, net::Ipv4Addr, net::SocketAddr, time::Duration};
+use std::{net::IpAddr, net::Ipv4Addr, net::SocketAddr};
 
 use crate::discovery::DiscoveryManager;
 use crate::security::crypto::{DeviceIdentity, PairingCode};
-use crate::transport::{TransportClient, TransportServer};
+use crate::transport::TransportServer;
 
 /// Opaque handle to the VoidWarp engine
 pub struct VoidWarpHandle {
@@ -124,8 +124,8 @@ fn start_discovery_internal(
                     tracing::warn!("Failed to register mDNS service (continuing anyway): {}", e);
                 }
 
-                // Try to start background browsing, but don't fail if it doesn't work
-                if let Err(e) = mgr.start_background_browsing() {
+                // Try to start background browsing (mDNS + UDP beacon listener), but don't fail if it doesn't work
+                if let Err(e) = mgr.start_background_browsing(port) {
                     tracing::warn!("Failed to start mDNS browsing (continuing anyway): {}", e);
                 }
 

@@ -9,14 +9,28 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
-  <!-- Copy native DLL to output -->
-  <ItemGroup>
-    <None Include="..\..\target\release\voidwarp_core.dll" 
-          CopyToOutputDirectory="PreserveNewest" 
-          Link="voidwarp_core.dll"
-          Condition="Exists('..\..\target\release\voidwarp_core.dll')" />
-  </ItemGroup>
+  <!-- Path to Rust core DLL (repo root target/release) -->
+  <PropertyGroup>
+    <RustCoreDllPath>$(MSBuildThisFileDirectory)..\..\target\release\voidwarp_core.dll</RustCoreDllPath>
+  </PropertyGroup>
 
+  <!-- Build Rust core when DLL is missing (so dotnet build alone can succeed) -->
+  <Target Name="BuildRustCoreIfMissing" BeforeTargets="BeforeBuild">
+    <Exec Command="cargo build --release -p voidwarp-core" 
+          WorkingDirectory="$(MSBuildThisFileDirectory)..\.." 
+          Condition="!Exists('$(RustCoreDllPath)')"
+          IgnoreExitCode="false" />
+  </Target>
+
+  <!-- Copy native DLL to output after build (ensures exe and dll are in same folder) -->
+  <Target Name="CopyRustCoreDll" AfterTargets="Build">
+    <Copy SourceFiles="$(RustCoreDllPath)" 
+          DestinationFolder="$(OutputPath)" 
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(RustCoreDllPath)')" />
+    <Warning Text="voidwarp_core.dll 未找到，无法复制。请从项目根目录运行 build_windows.bat 或执行: cargo build --release -p voidwarp-core" 
+             Condition="!Exists('$(RustCoreDllPath)')" />
+  </Target>
 
 </Project>
 

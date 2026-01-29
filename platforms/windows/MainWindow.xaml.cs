@@ -49,6 +49,15 @@ namespace VoidWarp.Windows
         }
 
         /// <summary>
+        /// Open file picker when user clicks the file selector area (matches Android tap-to-select).
+        /// </summary>
+        private void FileSelectArea_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (_viewModel.SelectFileCommand.CanExecute(null))
+                _viewModel.SelectFileCommand.Execute(null);
+        }
+
+        /// <summary>
         /// Cleanup when window is closed.
         /// </summary>
         protected override void OnClosed(EventArgs e)

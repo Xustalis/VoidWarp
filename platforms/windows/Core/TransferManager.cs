@@ -25,7 +25,7 @@ namespace VoidWarp.Windows.Core
         /// <summary>
         /// Start sending a file to the target peer using TCP
         /// </summary>
-        public async Task SendFileAsync(string filePath, DiscoveredPeer target, CancellationToken cancellationToken = default)
+        public async Task SendFileAsync(string filePath, PeerItem target, CancellationToken cancellationToken = default)
         {
             if (IsTransferring)
                 throw new InvalidOperationException("A transfer is already in progress");

@@ -147,20 +147,6 @@ namespace VoidWarp.Windows.Core
 
     #endregion
 
-    #region Receiver State Enum
-
-    public static class ReceiverState
-    {
-        public const int Idle = 0;
-        public const int Listening = 1;
-        public const int AwaitingAccept = 2;
-        public const int Receiving = 3;
-        public const int Completed = 4;
-        public const int Error = 5;
-    }
-
-    #endregion
-
     /// <summary>
     /// Singleton async wrapper for VoidWarp native library.
     /// Mimics Android's TransferManager pattern with C# events.
@@ -775,8 +761,8 @@ namespace VoidWarp.Windows.Core
                     while (!token.IsCancellationRequested && _receiverHandle != IntPtr.Zero)
                     {
                         int state = NativeBindings.voidwarp_receiver_get_state(_receiverHandle);
-                        
-                        await HandleReceiverState(state, token);
+
+                        await HandleReceiverState((ReceiverState)state, token);
                         await Task.Delay(200, token);
                     }
                 }
@@ -799,7 +785,7 @@ namespace VoidWarp.Windows.Core
             }, token);
         }
 
-        private async Task HandleReceiverState(int state, CancellationToken token)
+        private async Task HandleReceiverState(ReceiverState state, CancellationToken token)
         {
             switch (state)
             {

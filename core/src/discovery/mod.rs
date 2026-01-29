@@ -1,7 +1,11 @@
 //! Discovery Module
 //!
-//! mDNS-based service discovery for finding VoidWarp peers on LAN.
+//! mDNS-based service discovery plus multi-interface UDP broadcast beacon
+//! so Windows is discoverable by Android (avoids split-brain on multi-adapter systems).
 
+mod broadcast;
+
+use broadcast::{BroadcastBeacon, BeaconListener};
 use mdns_sd::{Receiver as MdnsReceiver, ServiceDaemon, ServiceEvent, ServiceInfo};
 use std::collections::HashMap;
 use std::net::IpAddr;
@@ -27,12 +31,16 @@ pub enum DiscoveryEvent {
     PeerLost(String), // device_id
 }
 
-/// Discovery Manager for mDNS operations
+/// Discovery Manager for mDNS operations + multi-interface broadcast beacon
 pub struct DiscoveryManager {
     daemon: Option<ServiceDaemon>,
     peers: Arc<RwLock<HashMap<String, DiscoveredPeer>>>,
     our_service: Option<String>,
     fallback_mode: bool,
+    /// UDP beacon so Windows is discoverable on every interface (fixes split-brain)
+    beacon: Option<BroadcastBeacon>,
+    /// UDP listener for Hello beacons from other hosts (so Android can discover Windows)
+    beacon_listener: Option<BeaconListener>,
 }
 
 impl DiscoveryManager {
@@ -46,6 +54,8 @@ impl DiscoveryManager {
             peers: Arc::new(RwLock::new(HashMap::new())),
             our_service: None,
             fallback_mode: false,
+            beacon: None,
+            beacon_listener: None,
         })
     }
 
@@ -58,6 +68,8 @@ impl DiscoveryManager {
             peers: Arc::new(RwLock::new(HashMap::new())),
             our_service: None,
             fallback_mode: true,
+            beacon: None,
+            beacon_listener: None,
         }
     }
 
@@ -139,8 +151,17 @@ impl DiscoveryManager {
             .map_err(|e| format!("Failed to register service: {}", e))?;
 
         self.our_service = Some(device_id.to_string());
+
+        // Multi-interface UDP beacon so Windows is discoverable by Android on every adapter
+        let beacon = BroadcastBeacon::start(
+            device_id.to_string(),
+            device_name.to_string(),
+            port,
+        );
+        self.beacon = Some(beacon);
+
         tracing::info!(
-            "Successfully registered mDNS service: {} on port {} ({})",
+            "Successfully registered mDNS service: {} on port {} ({}); UDP beacon started on all interfaces",
             device_id,
             port,
             platform
@@ -268,8 +289,16 @@ impl DiscoveryManager {
         peers_guard.values().cloned().collect()
     }
 
-    /// Start background browsing thread for FFI usage (no channel, just updates map)
-    pub fn start_background_browsing(&self) -> Result<(), String> {
+    /// Start background browsing thread for FFI usage (no channel, just updates map).
+    /// Also starts UDP beacon listener on `beacon_port` so we discover peers that send Hello (e.g. Windows).
+    /// Use the same port as the receiver/beacon (e.g. 42424) so Android can discover Windows.
+    pub fn start_background_browsing(&mut self, beacon_port: u16) -> Result<(), String> {
+        if let Ok(listener) =
+            BeaconListener::start(beacon_port, self.our_service.clone(), self.peers.clone())
+        {
+            self.beacon_listener = Some(listener);
+            tracing::info!("UDP beacon listener started on 0.0.0.0:{}", beacon_port);
+        }
         let receiver = self.browse()?;
         let peers = self.peers.clone();
         let our_id = self.our_service.clone();
@@ -359,8 +388,16 @@ impl DiscoveryManager {
         peers_guard.insert(device_id, peer);
     }
 
-    /// Unregister our service
+    /// Unregister our service and stop the UDP beacon and listener
     pub fn unregister(&mut self) {
+        if let Some(listener) = self.beacon_listener.take() {
+            listener.stop();
+            tracing::info!("UDP beacon listener stopped");
+        }
+        if let Some(beacon) = self.beacon.take() {
+            beacon.stop();
+            tracing::info!("UDP broadcast beacon stopped");
+        }
         if let Some(ref service_id) = self.our_service {
             if let Some(ref daemon) = self.daemon {
                 let fullname = format!("{}.{}", service_id, SERVICE_TYPE);
