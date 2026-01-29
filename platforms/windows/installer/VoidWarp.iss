@@ -1,30 +1,31 @@
-; VoidWarp Windows Installer - Inno Setup Script
-; 用法：先运行项目根目录的 publish_windows.bat 生成 publish\VoidWarp-Windows，再运行：
-;   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" platforms\windows\installer\VoidWarp.iss
-
+; VoidWarp Windows Installer - Optimized Inno Setup Script
 #define MyAppName "VoidWarp"
 #define MyAppNameCn "虚空传送"
 #define MyAppVersion "1.0.0"
-#define MyAppPublisher "VoidWarp"
+#define MyAppPublisher "Xenith"
 #define MyAppURL "https://github.com/XenithCode/VoidWarp"
 #define PublishDir "..\..\..\publish\VoidWarp-Windows"
+#define MyAppExeName "VoidWarp.Windows.exe"
 
 [Setup]
+; 这里的 AppId 建议生成一个固定的，防止版本升级时安装两个程序
 AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
 AppName={#MyAppName} ({#MyAppNameCn})
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
-AppSupportURL={#MyAppURL}
-AppUpdatesURL={#MyAppURL}
-DefaultDirName={autopf}\VoidWarp
+DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
+; 自动检测并提醒用户关闭正在运行的程序
+AppGreetingsExplicitlyAcknowledged=yes
+CloseApplications=yes
+RestartApplications=yes
+; 其它设置
 LicenseFile={#PublishDir}\LICENSE
 OutputDir={#PublishDir}\..\output
 OutputBaseFilename=VoidWarp-Windows-x64-Setup
-SetupIconFile=
-Compression=lzma2
+Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=admin
@@ -36,34 +37,33 @@ Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.i
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "firewall"; Description: "安装完成后以管理员身份配置防火墙（推荐，便于 Android 发现本机）"; GroupDescription: "其他:"; Flags: unchecked
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+Name: "firewall"; Description: "配置 Windows 防火墙允许 UDP 广播发现 (推荐)"; GroupDescription: "网络配置:"; Flags: checkedonce
 
 [Files]
-Source: "{#PublishDir}\VoidWarp.Windows.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#PublishDir}\voidwarp_core.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#PublishDir}\VoidWarp.Windows.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#PublishDir}\*.runtimeconfig.json"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#PublishDir}\*.deps.json"; DestDir: "{app}"; Flags: ignoreversion
+; 1. 核心程序
+Source: "{#PublishDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+; 2. 批量包含 DLL 和配置文件，避免漏掉第三方库
+Source: "{#PublishDir}\*.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#PublishDir}\*.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#PublishDir}\setup_firewall.bat"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#PublishDir}\README.txt"; DestDir: "{app}"; Flags: ignoreversion isreadme
 Source: "{#PublishDir}\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+; 3. 包含所有 runtime 依赖子目录 (例如 runtimes\win-x64\...)
+Source: "{#PublishDir}\runtimes\*"; DestDir: "{app}\runtimes"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\VoidWarp.Windows.exe"; WorkingDir: "{app}"
-Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\VoidWarp.Windows.exe"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\setup_firewall.bat"; Description: "立即配置防火墙（推荐）"; Flags: runhidden waituntilterminated; Tasks: firewall
+; 修改为以管理员权限运行防火墙脚本
+Filename: "{app}\setup_firewall.bat"; Description: "正在配置防火墙规则..."; Flags: runascurrentuser runhidden waituntilterminated; Tasks: firewall
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
-[Code]
-function InitializeSetup(): Boolean;
-begin
-  Result := True;
-  if not DirExists(ExpandConstant('{#PublishDir}')) then
-  begin
-    MsgBox('未找到发布文件。请先运行项目根目录的 publish_windows.bat 生成 publish\VoidWarp-Windows 后再编译安装包。', mbError, MB_OK);
-    Result := False;
-  end;
-end;
+[UninstallRun]
+; 卸载时可选地清理防火墙规则（如果你的 bat 支持 /clean 参数的话）
+; Filename: "{app}\setup_firewall.bat"; Parameters: "/clean"; Flags: runhidden
+
+[UninstallDelete]
+; 卸载时删除生成的日志或临时文件
+Type: filesandordirs; Name: "{localappdata}\VoidWarp"
