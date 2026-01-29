@@ -1,29 +1,28 @@
-; VoidWarp Windows Installer - Optimized Inno Setup Script
-#define MyAppName "VoidWarp"
-#define MyAppNameCn "虚空传送"
-#define MyAppVersion "1.0.0"
-#define MyAppPublisher "Xenith"
-#define MyAppURL "https://github.com/XenithCode/VoidWarp"
-#define PublishDir "..\..\..\publish\VoidWarp-Windows"
-#define MyAppExeName "VoidWarp.Windows.exe"
+; VoidWarp Windows Installer - Inno Setup Script
+; 用法：先运行项目根目录的 publish_windows.bat 生成 publish\VoidWarp-Windows
+; 然后运行本目录的 build_installer.bat 或使用 ISCC 编译此脚本
+
+#define VwName "VoidWarp"
+#define VwNameCn "虚空传送"
+#define VwVersion "2.0.0.0"
+#define VwPublisher "Xenith"
+#define VwURL "https://github.com/XenithCode/VoidWarp"
+#define VwPublishDir "..\..\..\publish\VoidWarp-Windows"
+#define VwExeName "VoidWarp.Windows.exe"
 
 [Setup]
-; 这里的 AppId 建议生成一个固定的，防止版本升级时安装两个程序
-AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
-AppName={#MyAppName} ({#MyAppNameCn})
-AppVersion={#MyAppVersion}
-AppPublisher={#MyAppPublisher}
-AppPublisherURL={#MyAppURL}
-DefaultDirName={autopf}\{#MyAppName}
-DefaultGroupName={#MyAppName}
+AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}}
+AppName={#VwName} ({#VwNameCn})
+AppVersion={#VwVersion}
+AppPublisher={#VwPublisher}
+AppPublisherURL={#VwURL}
+DefaultDirName={autopf}\{#VwName}
+DefaultGroupName={#VwName}
 DisableProgramGroupPage=yes
-; 自动检测并提醒用户关闭正在运行的程序
-AppGreetingsExplicitlyAcknowledged=yes
 CloseApplications=yes
 RestartApplications=yes
-; 其它设置
-LicenseFile={#PublishDir}\LICENSE
-OutputDir={#PublishDir}\..\output
+LicenseFile={#VwPublishDir}\LICENSE
+OutputDir={#VwPublishDir}\..\output
 OutputBaseFilename=VoidWarp-Windows-x64-Setup
 Compression=lzma2/max
 SolidCompression=yes
@@ -41,29 +40,21 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "firewall"; Description: "配置 Windows 防火墙允许 UDP 广播发现 (推荐)"; GroupDescription: "网络配置:"; Flags: checkedonce
 
 [Files]
-; 1. 核心程序
-Source: "{#PublishDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-; 2. 批量包含 DLL 和配置文件，避免漏掉第三方库
-Source: "{#PublishDir}\*.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#PublishDir}\*.json"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#PublishDir}\setup_firewall.bat"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#PublishDir}\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
-; 3. 包含所有 runtime 依赖子目录 (例如 runtimes\win-x64\...)
-Source: "{#PublishDir}\runtimes\*"; DestDir: "{app}\runtimes"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#VwPublishDir}\{#VwExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#VwPublishDir}\*.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#VwPublishDir}\*.json"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#VwPublishDir}\setup_firewall.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#VwPublishDir}\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#VwPublishDir}\README.txt"; DestDir: "{app}"; Flags: ignoreversion isreadme
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{group}\{#VwName}"; Filename: "{app}\{#VwExeName}"; WorkingDir: "{app}"
+Name: "{group}\{cm:UninstallProgram,{#VwName}}"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\{#VwName}"; Filename: "{app}\{#VwExeName}"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
-; 修改为以管理员权限运行防火墙脚本
-Filename: "{app}\setup_firewall.bat"; Description: "正在配置防火墙规则..."; Flags: runascurrentuser runhidden waituntilterminated; Tasks: firewall
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
-
-[UninstallRun]
-; 卸载时可选地清理防火墙规则（如果你的 bat 支持 /clean 参数的话）
-; Filename: "{app}\setup_firewall.bat"; Parameters: "/clean"; Flags: runhidden
+Filename: "{app}\setup_firewall.bat"; Description: "正在配置防火墙规则..."; Flags: runhidden waituntilterminated; Tasks: firewall
+Filename: "{app}\{#VwExeName}"; Description: "{cm:LaunchProgram,{#VwName}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
-; 卸载时删除生成的日志或临时文件
 Type: filesandordirs; Name: "{localappdata}\VoidWarp"

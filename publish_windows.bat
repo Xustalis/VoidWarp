@@ -11,7 +11,7 @@ echo.
 cd /d "%~dp0"
 
 REM Step 1: Build Release version
-echo [Step 1/3] Building Release version...
+echo [Step 1/4] Building Release version...
 call build_windows.bat
 if errorlevel 1 (
     echo ERROR: Build failed!
@@ -20,7 +20,7 @@ if errorlevel 1 (
 echo.
 
 REM Step 2: Create publish directory
-echo [Step 2/3] Creating publish package...
+echo [Step 2/4] Creating publish package...
 set PUBLISH_DIR=publish\VoidWarp-Windows
 if exist "%PUBLISH_DIR%" (
     echo   ^> Cleaning old publish directory...
@@ -31,24 +31,37 @@ echo   ^> Created: %PUBLISH_DIR%
 echo.
 
 REM Step 3: Copy files
-echo [Step 3/3] Copying files...
+echo [Step 3/4] Copying files...
+
+set BIN_DIR=platforms\windows\bin\Release\net8.0-windows
+if not exist "%BIN_DIR%\VoidWarp.Windows.exe" (
+    echo ERROR: Build output not found. Expected: %BIN_DIR%\VoidWarp.Windows.exe
+    exit /b 1
+)
+if not exist "%BIN_DIR%\voidwarp_core.dll" (
+    echo ERROR: voidwarp_core.dll not found in %BIN_DIR%\
+    exit /b 1
+)
 
 REM Copy executable and DLL
-echo   ^> Copying executable...
-copy /Y "platforms\windows\bin\Release\net8.0-windows\VoidWarp.Windows.exe" "%PUBLISH_DIR%\" >nul
-copy /Y "platforms\windows\bin\Release\net8.0-windows\VoidWarp.Windows.dll" "%PUBLISH_DIR%\" >nul
-copy /Y "platforms\windows\bin\Release\net8.0-windows\voidwarp_core.dll" "%PUBLISH_DIR%\" >nul
+echo   ^> Copying executable and DLLs...
+copy /Y "%BIN_DIR%\VoidWarp.Windows.exe" "%PUBLISH_DIR%\"
+copy /Y "%BIN_DIR%\VoidWarp.Windows.dll" "%PUBLISH_DIR%\"
+copy /Y "%BIN_DIR%\voidwarp_core.dll" "%PUBLISH_DIR%\"
+if errorlevel 1 (
+    echo ERROR: Copy failed!
+    exit /b 1
+)
 
 REM Copy runtime config
-copy /Y "platforms\windows\bin\Release\net8.0-windows\*.runtimeconfig.json" "%PUBLISH_DIR%\" >nul 2>&1
-copy /Y "platforms\windows\bin\Release\net8.0-windows\*.deps.json" "%PUBLISH_DIR%\" >nul 2>&1
+copy /Y "%BIN_DIR%\*.runtimeconfig.json" "%PUBLISH_DIR%\" >nul 2>&1
+copy /Y "%BIN_DIR%\*.deps.json" "%PUBLISH_DIR%\" >nul 2>&1
 
 REM Copy firewall and install scripts
 echo   ^> Copying scripts...
-copy /Y "platforms\windows\setup_firewall.bat" "%PUBLISH_DIR%\setup_firewall.bat" >nul
-copy /Y "platforms\windows\setup_firewall.bat" "%PUBLISH_DIR%\firewall_rules.bat" >nul
-if exist "platforms\windows\publish\install.bat" copy /Y "platforms\windows\publish\install.bat" "%PUBLISH_DIR%\" >nul
-if exist "platforms\windows\publish\uninstall.bat" copy /Y "platforms\windows\publish\uninstall.bat" "%PUBLISH_DIR%\" >nul
+copy /Y "platforms\windows\setup_firewall.bat" "%PUBLISH_DIR%\setup_firewall.bat"
+if exist "platforms\windows\publish\install.bat" copy /Y "platforms\windows\publish\install.bat" "%PUBLISH_DIR%\"
+if exist "platforms\windows\publish\uninstall.bat" copy /Y "platforms\windows\publish\uninstall.bat" "%PUBLISH_DIR%\"
 
 REM Create README
 echo   ^> Creating README...
@@ -82,14 +95,22 @@ if exist "LICENSE" (
     copy /Y "LICENSE" "%PUBLISH_DIR%\" >nul
 )
 
-echo   ^> Files copied
+REM Verify required files in publish dir
+if not exist "%PUBLISH_DIR%\VoidWarp.Windows.exe" (
+    echo ERROR: VoidWarp.Windows.exe missing in %PUBLISH_DIR%
+    exit /b 1
+)
+if not exist "%PUBLISH_DIR%\voidwarp_core.dll" (
+    echo ERROR: voidwarp_core.dll missing in %PUBLISH_DIR%
+    exit /b 1
+)
+echo   ^> Files copied and verified
 echo.
 
-REM Create ZIP install package (optional - requires PowerShell)
-echo.
-echo Creating ZIP install package...
+REM Step 4: Create ZIP install package (requires PowerShell)
+echo [Step 4/4] Creating ZIP package...
 set ZIP_NAME=VoidWarp-Windows-x64.zip
-powershell -NoProfile -Command "Compress-Archive -Path '%PUBLISH_DIR%\*' -DestinationPath 'publish\%ZIP_NAME%' -Force" 2>nul
+powershell -NoProfile -Command "Compress-Archive -Path '%PUBLISH_DIR%' -DestinationPath 'publish\%ZIP_NAME%' -Force" 2>nul
 if exist "publish\%ZIP_NAME%" (
     echo   ^> Created: publish\%ZIP_NAME%
 ) else (
@@ -109,9 +130,10 @@ echo Contents:
 dir /b "%PUBLISH_DIR%"
 echo.
 echo To distribute: share the folder or publish\%ZIP_NAME%
-echo To build .exe installer (optional): install Inno Setup 6, then run:
+echo To build .exe installer (optional): install Inno Setup 6, then from project root run:
 echo   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" platforms\windows\installer\VoidWarp.iss
 echo   Output: publish\output\VoidWarp-Windows-x64-Setup.exe
-echo To test: cd %PUBLISH_DIR% then VoidWarp.Windows.exe
+echo.
+echo To test: cd %PUBLISH_DIR% ^& VoidWarp.Windows.exe
 echo.
 pause
