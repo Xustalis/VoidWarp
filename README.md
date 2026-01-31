@@ -1,4 +1,4 @@
-# VoidWarp (虚空传送) 🌌
+# VoidWarp  🌌
 
 [![CI](https://github.com/XenithCode/VoidWarp/actions/workflows/ci.yml/badge.svg)](https://github.com/XenithCode/VoidWarp/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
