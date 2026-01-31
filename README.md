@@ -3,7 +3,7 @@
 [![CI](https://github.com/XenithCode/VoidWarp/actions/workflows/ci.yml/badge.svg)](https://github.com/XenithCode/VoidWarp/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
-**VoidWarp** 是一个高性能、跨平台的局域网安全文件传输工具。它旨在提供比 AirDrop 更广泛的设备支持，同时保持极高的传输速度和安全性。
+**VoidWarp** 是一个高性能、跨平台的局域网安全文件传输工具。它旨在提供更广泛的设备支持，同时保持极高的传输速度和安全性。
 
 与常见的文件传输工具不同，VoidWarp 采用了 **Hybrid Core (混合核心)** 架构：
 *   **核心层 (Rust)**: 处理所有网络传输、加密、设备发现和文件 I/O。不仅保证了内存安全，还能在所有平台上提供一致的高性能。
@@ -23,7 +23,7 @@
 
 ### Windows 用户（推荐）
 
-*   **安装包**：从 [Releases](https://github.com/XenithCode/VoidWarp/releases) 下载 `VoidWarp-Windows-x64-Setup.exe`（需先构建）或 `VoidWarp-Windows-x64.zip`，解压后运行 `VoidWarp.Windows.exe`，或运行 `install.bat` 安装到程序目录并创建快捷方式。
+*   **安装包**：从 [Releases](https://github.com/XenithCode/VoidWarp/releases) 下载 `VoidWarp-Windows-x64-Setup.exe`或 `VoidWarp-Windows-x64.zip`，解压后运行 `VoidWarp.Windows.exe`，或运行 `install.bat` 安装到程序目录并创建快捷方式。
 *   **若 Android 扫描不到本机**：以管理员身份运行解压目录下的 `setup_firewall.bat` 配置防火墙。
 
 ### 📥 源码构建 (Build from Source)
@@ -63,7 +63,7 @@ dotnet build -c Release
 
 ## 📜 许可证 (License)
 
-Copyright © 2024 XenithCode.
+Copyright © 2026 Xustalis.
 
 本项目采用 **GNU General Public License v3.0 (GPLv3)** 许可证。
 
@@ -73,6 +73,16 @@ Copyright © 2024 XenithCode.
 *   ❌ **闭源商业**: 严禁将本项目源码集成到任何闭源商业软件中。
 
 我们希望通过开源协作共同完善 VoidWarp。如果您有其他授权需求，请联系作者。
+
+🌟 欢迎贡献与互动:
+
+*    VoidWarp 的成长离不开你的支持！
+
+*    如果你觉得这个项目不错：请点击右上角的 Star ⭐，这是最大的鼓励！
+
+*    如果你有好的想法：欢迎 Fork 并在自己的分支上尝试。
+
+*    如果你发现了 Bug：请毫不犹豫地提交 Issue 或发起 Pull Request !!!
 
 ---
 
