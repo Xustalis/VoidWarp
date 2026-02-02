@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Net.NetworkInformation;
 using System.Windows;
 
@@ -9,6 +10,46 @@ namespace VoidWarp.Windows.Core
     /// </summary>
     public static class FirewallHelper
     {
+        /// <summary>
+        /// Run setup_firewall.bat as administrator (for ZIP users or when installer didn't run it).
+        /// </summary>
+        public static bool RunFirewallSetupScript()
+        {
+            var appDir = AppDomain.CurrentDomain.BaseDirectory;
+            var batPath = Path.Combine(appDir, "setup_firewall.bat");
+            if (!File.Exists(batPath))
+            {
+                MessageBox.Show(
+                    "未找到 setup_firewall.bat，请确保其与 VoidWarp.Windows.exe 在同一目录。",
+                    "配置防火墙",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return false;
+            }
+
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = batPath,
+                    UseShellExecute = true,
+                    Verb = "runas", // 以管理员身份运行
+                    WorkingDirectory = appDir
+                };
+                Process.Start(startInfo);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[FirewallHelper] RunFirewallSetupScript failed: {ex.Message}");
+                MessageBox.Show(
+                    "无法启动防火墙配置脚本。请手动以管理员身份运行 setup_firewall.bat。",
+                    "配置防火墙",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return false;
+            }
+        }
         /// <summary>
         /// Check if the machine likely has network discovery issues
         /// </summary>

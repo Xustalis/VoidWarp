@@ -1056,16 +1056,19 @@ namespace VoidWarp.Windows.Core
 
             Log("Disposing VoidWarpEngine...", LogLevel.Info);
 
-            // Stop all operations
-            StopDiscovery();
-            StopReceiver();
-            CancelSend();
+            try { StopDiscovery(); }
+            catch (Exception ex) { Log($"StopDiscovery during dispose: {ex.Message}", LogLevel.Warning); }
 
-            // Destroy main handle
+            try { StopReceiver(); }
+            catch (Exception ex) { Log($"StopReceiver during dispose: {ex.Message}", LogLevel.Warning); }
+
+            try { CancelSend(); }
+            catch (Exception ex) { Log($"CancelSend during dispose: {ex.Message}", LogLevel.Warning); }
+
             if (_handle != IntPtr.Zero)
             {
                 try { NativeBindings.voidwarp_destroy(_handle); }
-                catch { }
+                catch (Exception ex) { Log($"voidwarp_destroy: {ex.Message}", LogLevel.Warning); }
                 finally { _handle = IntPtr.Zero; }
             }
 

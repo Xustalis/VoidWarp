@@ -221,7 +221,7 @@ fun MainScreen(
             ) {
                 Column {
                     Text(
-                        text = "虚空传送",
+                        text = "VoidWarp",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         color = AppColors.Primary,

@@ -58,16 +58,21 @@ namespace VoidWarp.Windows
         }
 
         /// <summary>
-        /// Cleanup when window is closed.
+        /// Cleanup when window is closed. Safe Dispose so shutdown never throws.
         /// </summary>
         protected override void OnClosed(EventArgs e)
         {
-            // Unsubscribe from events
             _viewModel.Logs.CollectionChanged -= Logs_CollectionChanged;
-            
-            // Dispose ViewModel (stops all operations, cleans up native handles)
-            _viewModel.Dispose();
-            
+
+            try
+            {
+                _viewModel.Dispose();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainWindow] Dispose error: {ex.Message}");
+            }
+
             base.OnClosed(e);
         }
     }

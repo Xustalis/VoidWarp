@@ -299,6 +299,7 @@ namespace VoidWarp.Windows.ViewModels
         public ICommand OpenDownloadsCommand { get; }
         public ICommand AddManualPeerCommand { get; }
         public ICommand CancelTransferCommand { get; }
+        public ICommand ConfigureFirewallCommand { get; }
 
         #endregion
 
@@ -331,6 +332,7 @@ namespace VoidWarp.Windows.ViewModels
             OpenDownloadsCommand = new RelayCommand(_ => OpenDownloadsFolder());
             AddManualPeerCommand = new RelayCommand(_ => ShowAddPeerDialog());
             CancelTransferCommand = new RelayCommand(_ => CancelTransfer());
+            ConfigureFirewallCommand = new RelayCommand(_ => Core.FirewallHelper.RunFirewallSetupScript());
 
             // Initial log
             AddLog("VoidWarp Windows Client started");
@@ -739,19 +741,36 @@ namespace VoidWarp.Windows.ViewModels
         /// </summary>
         private void InvokeOnUI(Action action)
         {
-            if (Application.Current?.Dispatcher == null)
-            {
-                action();
-                return;
-            }
+            if (_disposed) return;
 
-            if (Application.Current.Dispatcher.CheckAccess())
+            try
             {
-                action();
+                if (Application.Current?.Dispatcher == null)
+                {
+                    action();
+                    return;
+                }
+
+                if (Application.Current.Dispatcher.CheckAccess())
+                {
+                    action();
+                }
+                else
+                {
+                    Application.Current.Dispatcher.Invoke(action);
+                }
             }
-            else
+            catch (ObjectDisposedException)
             {
-                Application.Current.Dispatcher.Invoke(action);
+                // App shutting down
+            }
+            catch (InvalidOperationException)
+            {
+                // Dispatcher shutting down or similar
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainViewModel] InvokeOnUI error: {ex.Message}");
             }
         }
 
@@ -833,16 +852,18 @@ namespace VoidWarp.Windows.ViewModels
         {
             if (_disposed) return;
 
-            // Unsubscribe from events
             _engine.OnLog -= Engine_OnLog;
             _engine.OnPeerDiscovered -= Engine_OnPeerDiscovered;
             _engine.OnProgress -= Engine_OnProgress;
             _engine.OnTransferComplete -= Engine_OnTransferComplete;
             _engine.OnPendingTransfer -= Engine_OnPendingTransfer;
 
-            // Dispose engine
-            _engine.Dispose();
-            
+            try { _engine.Dispose(); }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainViewModel] Engine.Dispose error: {ex.Message}");
+            }
+
             _disposed = true;
         }
 
@@ -867,7 +888,22 @@ namespace VoidWarp.Windows.ViewModels
 
         public bool CanExecute(object? parameter) => _canExecute?.Invoke(parameter) ?? true;
 
-        public void Execute(object? parameter) => _execute(parameter);
+        public void Execute(object? parameter)
+        {
+            try
+            {
+                _execute(parameter);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[RelayCommand] Execute error: {ex.Message}");
+                System.Windows.MessageBox.Show(
+                    $"操作失败：{ex.Message}",
+                    "VoidWarp",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
+            }
+        }
 
         public event EventHandler? CanExecuteChanged
         {

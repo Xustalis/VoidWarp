@@ -3,7 +3,6 @@
 ; 然后运行本目录的 build_installer.bat 或使用 ISCC 编译此脚本
 
 #define VwName "VoidWarp"
-#define VwNameCn "虚空传送"
 #define VwVersion "2.0.0.0"
 #define VwPublisher "Xenith"
 #define VwURL "https://github.com/XenithCode/VoidWarp"
@@ -12,7 +11,7 @@
 
 [Setup]
 AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}}
-AppName={#VwName} ({#VwNameCn})
+AppName={#VwName}
 AppVersion={#VwVersion}
 AppPublisher={#VwPublisher}
 AppPublisherURL={#VwURL}
@@ -37,7 +36,6 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
-Name: "firewall"; Description: "配置 Windows 防火墙允许 UDP 广播发现 (推荐)"; GroupDescription: "网络配置:"; Flags: checkedonce
 
 [Files]
 Source: "{#VwPublishDir}\{#VwExeName}"; DestDir: "{app}"; Flags: ignoreversion
@@ -53,7 +51,8 @@ Name: "{group}\{cm:UninstallProgram,{#VwName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#VwName}"; Filename: "{app}\{#VwExeName}"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\setup_firewall.bat"; Description: "正在配置防火墙规则..."; Flags: runhidden waituntilterminated; Tasks: firewall
+; 安装后自动配置防火墙（静默执行，无需用户操作）
+Filename: "{app}\setup_firewall.bat"; Parameters: "silent"; Description: "配置防火墙以允许设备发现..."; Flags: runhidden waituntilterminated
 Filename: "{app}\{#VwExeName}"; Description: "{cm:LaunchProgram,{#VwName}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
