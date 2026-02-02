@@ -23,29 +23,7 @@ namespace VoidWarp.Windows
             DataContext = _viewModel;
 
             // Auto-scroll logs to bottom when new items are added
-            _viewModel.Logs.CollectionChanged += Logs_CollectionChanged;
-        }
-
-        /// <summary>
-        /// Scroll log viewer to bottom when new log entries are added.
-        /// </summary>
-        private void Logs_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-        {
-            if (e.Action == NotifyCollectionChangedAction.Add)
-            {
-                // Use BeginInvoke with low priority to ensure UI has updated
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    try
-                    {
-                        LogScrollViewer?.ScrollToEnd();
-                    }
-                    catch
-                    {
-                        // Ignore scroll errors
-                    }
-                }), DispatcherPriority.Background);
-            }
+            // _viewModel.Logs.CollectionChanged += Logs_CollectionChanged;
         }
 
         /// <summary>
@@ -57,12 +35,27 @@ namespace VoidWarp.Windows
                 _viewModel.SelectFileCommand.Execute(null);
         }
 
+        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState.Minimized;
+        }
+
+        private void MaximizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+        }
+
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
+        }
+
         /// <summary>
         /// Cleanup when window is closed. Safe Dispose so shutdown never throws.
         /// </summary>
         protected override void OnClosed(EventArgs e)
         {
-            _viewModel.Logs.CollectionChanged -= Logs_CollectionChanged;
+            // _viewModel.Logs.CollectionChanged -= Logs_CollectionChanged;
 
             try
             {
