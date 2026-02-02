@@ -22,7 +22,8 @@ namespace VoidWarp.Windows
             _viewModel = new MainViewModel();
             DataContext = _viewModel;
 
-            // Auto-scroll logs to bottom when new items are added
+            // CRITICAL: Ensure this window is recognized as the MainWindow for dialog ownership
+            Application.Current.MainWindow = this;
             // _viewModel.Logs.CollectionChanged += Logs_CollectionChanged;
         }
 

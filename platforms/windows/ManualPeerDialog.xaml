@@ -6,7 +6,9 @@
         Width="400"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        Background="#1A1A2E">
+        Background="Transparent"
+        AllowsTransparency="True"
+        WindowStyle="None">
     
     <Window.Resources>
         <!-- Android-aligned theme -->

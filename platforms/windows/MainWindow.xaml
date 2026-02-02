@@ -6,10 +6,8 @@
         xmlns:local="clr-namespace:VoidWarp.Windows"
         mc:Ignorable="d"
         Title="VoidWarp" 
-        Height="780" 
-        Width="1200"
-        MinHeight="600"
-        MinWidth="900"
+        Height="720" Width="1080"
+        MinHeight="600" MinWidth="900"
         WindowStartupLocation="CenterScreen"
         Background="Transparent"
         AllowsTransparency="True"
@@ -25,32 +23,39 @@
     </WindowChrome.WindowChrome>
 
     <Window.Resources>
-        <!-- ==================== Theme Colors ==================== -->
-        <Color x:Key="BackgroundColor">#121212</Color>
-        <Color x:Key="SurfaceColor">#1E1E2E</Color>
-        <Color x:Key="SurfaceLightColor">#2A2A3C</Color>
-        <Color x:Key="SurfaceHoverColor">#38384E</Color>
+        <!-- ==================== Theme Colors from Android ==================== -->
+        <!-- Deep Space Blue Background (#1A1A2E) -->
+        <Color x:Key="BackgroundColor">#1A1A2E</Color>
+        <!-- Surface Blue (#16213E) -->
+        <Color x:Key="SurfaceColor">#16213E</Color>
+        <!-- Lighter Surface / Cards (#2A2A4A) -->
+        <Color x:Key="SurfaceLightColor">#2A2A4A</Color>
         
-        <Color x:Key="PrimaryColor">#7F5AF0</Color>
-        <Color x:Key="PrimaryVariantColor">#6846D6</Color>
-        <Color x:Key="SecondaryColor">#2CB67D</Color>
+        <!-- Primary Neon Purple (#6C63FF) -->
+        <Color x:Key="PrimaryColor">#6C63FF</Color>
+        <!-- Secondary / Muted Purple (#4A4E69) -->
+        <Color x:Key="SecondaryColor">#4A4E69</Color>
+        <!-- Accent Orange (from Android AppColors.Secondary) -->
+        <Color x:Key="AccentColor">#FF9800</Color>
         
+        <!-- Text Colors -->
         <Color x:Key="TextPrimaryColor">#FFFFFFFF</Color>
-        <Color x:Key="TextSecondaryColor">#A0A0B0</Color>
-        <Color x:Key="TextTertiaryColor">#707080</Color>
+        <Color x:Key="TextSecondaryColor">#B0B0C0</Color>
         
         <!-- Brushes -->
         <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}"/>
         <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
         <SolidColorBrush x:Key="SurfaceLightBrush" Color="{StaticResource SurfaceLightColor}"/>
-        <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHoverColor}"/>
         <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource PrimaryColor}"/>
         <SolidColorBrush x:Key="SecondaryBrush" Color="{StaticResource SecondaryColor}"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
         <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}"/>
         <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}"/>
-        <SolidColorBrush x:Key="TextTertiaryBrush" Color="{StaticResource TextTertiaryColor}"/>
 
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- App Icon Resource -->
+        <BitmapImage x:Key="AppIcon" UriSource="Assets/app.ico"/>
 
         <!-- ==================== Styles ==================== -->
         
@@ -65,11 +70,12 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border Background="{TemplateBinding Background}">
-                            <Path Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" 
-                                  Width="10" Height="10" 
-                                  Stretch="Uniform" 
-                                  Fill="{TemplateBinding Foreground}" 
-                                  HorizontalAlignment="Center" VerticalAlignment="Center" SnapsToDevicePixels="True"/>
+                            <TextBlock Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" 
+                                       FontFamily="Segoe MDL2 Assets" 
+                                       FontSize="10"
+                                       HorizontalAlignment="Center" 
+                                       VerticalAlignment="Center" 
+                                       Foreground="{TemplateBinding Foreground}"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -95,20 +101,14 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Card Style with Shadow -->
-        <Style x:Key="CardStyle" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
-            <Setter Property="CornerRadius" Value="12"/>
-            <Setter Property="Padding" Value="20"/>
-            <Setter Property="Effect">
-                <Setter.Value>
-                    <DropShadowEffect BlurRadius="15" ShadowDepth="4" Direction="270" Opacity="0.3" Color="Black"/>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Modern Button Base -->
-        <Style x:Key="ModernButtonBase" TargetType="Button">
+        <!-- Modern Button Style -->
+        <Style x:Key="ModernButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -117,12 +117,11 @@
                                 CornerRadius="8" 
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16,10"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="border" Property="Opacity" Value="0.9"/>
-                                <Setter Property="Cursor" Value="Hand"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="border" Property="Opacity" Value="0.7"/>
@@ -134,46 +133,31 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="16,10"/>
         </Style>
 
-        <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ModernButtonBase}">
-            <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-        </Style>
-        
-        <Style x:Key="OutlineButton" TargetType="Button" BasedOn="{StaticResource ModernButtonBase}">
+        <!-- Ghost / Outline Button Style -->
+        <Style x:Key="GhostButtonStyle" TargetType="Button" BasedOn="{StaticResource ModernButtonStyle}">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
-            <Setter Property="BorderThickness" Value="1.5"/>
+            <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}"/>
-        </Style>
-
-        <Style x:Key="GhostButton" TargetType="Button" BasedOn="{StaticResource ModernButtonBase}">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}"/>
-                    <Setter Property="Background" Value="#1AFFFFFF"/>
+                    <Setter Property="Background" Value="#1A6C63FF"/> 
                 </Trigger>
             </Style.Triggers>
         </Style>
 
     </Window.Resources>
     
-    <!-- Main Window Border (for Resize/Shadow) -->
+    <!-- Main Window Border -->
     <Border Background="{StaticResource BackgroundBrush}" 
-            CornerRadius="8" 
+            CornerRadius="0" 
             BorderThickness="1" 
             BorderBrush="{StaticResource SurfaceBrush}">
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- Custom TitleBar -->
+                <RowDefinition Height="Auto"/> <!-- TitleBar -->
                 <RowDefinition Height="*"/>    <!-- Content -->
             </Grid.RowDefinitions>
             
@@ -193,53 +177,62 @@
                 
                 <!-- Window Controls -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <Button Style="{StaticResource CaptionButtonStyle}" Tag="M 0,10 L 10,10 M 0,11 L 10,11" Click="MinimizeButton_Click"/>
-                    <Button x:Name="MaximizeButton" Style="{StaticResource CaptionButtonStyle}" Tag="M 1,1 L 9,1 L 9,9 L 1,9 Z" Click="MaximizeButton_Click"/>
-                    <Button Style="{StaticResource CloseButtonStyle}" Tag="M 0,0 L 10,10 M 0,10 L 10,0" Click="CloseButton_Click"/>
+                    <Button Style="{StaticResource CaptionButtonStyle}" Tag="&#xE921;" Click="MinimizeButton_Click"/>
+                    <Button x:Name="MaximizeButton" Style="{StaticResource CaptionButtonStyle}" Tag="&#xE922;" Click="MaximizeButton_Click"/>
+                    <Button Style="{StaticResource CloseButtonStyle}" Tag="&#xE8BB;" Click="CloseButton_Click"/>
                 </StackPanel>
             </Grid>
             
             <!-- Main Content Area -->
             <Grid Grid.Row="1" Margin="24">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="380"/>
+                    <ColumnDefinition Width="340"/>
+                    <ColumnDefinition Width="24"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 
                 <!-- Left Sidebar -->
-                <StackPanel Grid.Column="0" Margin="0,0,24,0">
+                <Grid Grid.Column="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
                     
-                    <!-- Device Identity -->
-                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,20">
+                    <!-- Device Identity Card -->
+                    <Border Grid.Row="0" Background="{StaticResource SurfaceLightBrush}" CornerRadius="12" Padding="20" Margin="0,0,0,20">
                         <StackPanel>
-                            <TextBlock Text="Local Device" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" FontWeight="Bold" Margin="0,0,0,10"/>
-                            <TextBlock Text="{Binding DeviceId}" Foreground="{StaticResource PrimaryBrush}" FontSize="24" FontWeight="Bold" FontFamily="Consolas"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,15,0,0">
-                                <Ellipse Width="8" Height="8" Fill="{StaticResource SecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBlock Text="Online" Foreground="{StaticResource SecondaryBrush}" FontWeight="SemiBold"/>
+                            <TextBlock Text="本机设备" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" FontWeight="Bold" Margin="0,0,0,8"/>
+                            <TextBlock Text="{Binding DeviceId}" Foreground="White" FontSize="20" FontWeight="Bold" FontFamily="Consolas" TextTrimming="CharacterEllipsis"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                <Ellipse Width="8" Height="8" Fill="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="在线" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" FontSize="12"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
                     
                     <!-- Nearby Devices List -->
-                    <Border Style="{StaticResource CardStyle}" Height="400">
+                    <Border Grid.Row="1" Background="{StaticResource SurfaceLightBrush}" CornerRadius="12">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             
-                            <Grid Grid.Row="0" Margin="0,0,0,16">
-                                <TextBlock Text="Nearby Devices" Foreground="{StaticResource TextPrimaryBrush}" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                <Button Content="↻" Style="{StaticResource GhostButton}" HorizontalAlignment="Right" Command="{Binding ScanCommand}" ToolTip="Refresh"/>
+                            <!-- List Header -->
+                            <Grid Grid.Row="0" Margin="20,16">
+                                <TextBlock Text="附近设备" Foreground="{StaticResource TextPrimaryBrush}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <Button Command="{Binding ScanCommand}" Style="{StaticResource CaptionButtonStyle}" Tag="&#xE72C;" 
+                                        HorizontalAlignment="Right" Width="36" Height="36" Background="Transparent" Foreground="{StaticResource PrimaryBrush}"/>
                             </Grid>
 
+                            <!-- Peers List -->
                             <ListBox Grid.Row="1" 
                                      ItemsSource="{Binding Peers}"
                                      SelectedItem="{Binding SelectedPeer}"
                                      Background="Transparent"
                                      BorderThickness="0"
+                                     Margin="10,0,10,10"
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                 <ListBox.ItemContainerStyle>
                                     <Style TargetType="ListBoxItem">
@@ -247,12 +240,12 @@
                                         <Setter Property="Template">
                                             <Setter.Value>
                                                 <ControlTemplate TargetType="ListBoxItem">
-                                                    <Border x:Name="ItemBorder" Background="{StaticResource SurfaceLightBrush}" CornerRadius="8" Padding="12" Cursor="Hand">
+                                                    <Border x:Name="ItemBorder" Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="12" Cursor="Hand">
                                                         <ContentPresenter/>
                                                     </Border>
                                                     <ControlTemplate.Triggers>
                                                         <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource SurfaceHoverBrush}"/>
+                                                            <Setter TargetName="ItemBorder" Property="Background" Value="#38384E"/>
                                                         </Trigger>
                                                         <Trigger Property="IsSelected" Value="True">
                                                             <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource PrimaryBrush}"/>
@@ -272,12 +265,12 @@
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <Border Width="36" Height="36" CornerRadius="18" Background="#2A2A3C" Margin="0,0,12,0">
-                                                <TextBlock Text="📱" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16"/>
+                                            <Border Width="36" Height="36" CornerRadius="18" Background="#33FFFFFF" Margin="0,0,12,0">
+                                                <TextBlock Text="&#xE7F4;" FontFamily="Segoe MDL2 Assets" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Foreground="White"/>
                                             </Border>
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding DeviceName}" FontWeight="SemiBold" FontSize="14"/>
-                                                <TextBlock Text="{Binding DisplayName}" Opacity="0.7" FontSize="11"/>
+                                                <TextBlock Text="{Binding DeviceName}" FontWeight="SemiBold" FontSize="14" Foreground="White"/>
+                                                <TextBlock Text="{Binding DisplayName}" Opacity="0.7" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
                                             </StackPanel>
                                         </Grid>
                                     </DataTemplate>
@@ -286,64 +279,86 @@
                             
                             <!-- Empty State -->
                             <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding HasNoPeers, Converter={StaticResource BoolToVis}}">
-                                <TextBlock Text="Scanning..." Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                                <TextBlock Text="&#xE9F5;" FontFamily="Segoe MDL2 Assets" FontSize="32" Foreground="{StaticResource SecondaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                                <TextBlock Text="正在扫描..." Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
                             </StackPanel>
-
-                            <Button Grid.Row="2" Content="+ Add Manual Peer" Style="{StaticResource OutlineButton}" Margin="0,16,0,0" Command="{Binding AddManualPeerCommand}"/>
                         </Grid>
                     </Border>
-                </StackPanel>
+                    
+                    <!-- Manual Add Button -->
+                    <Button Grid.Row="2" Content="手动添加设备" Style="{StaticResource GhostButtonStyle}" Margin="0,16,0,0" Command="{Binding AddManualPeerCommand}"/>
+                </Grid>
                 
                 <!-- Right Content -->
-                <Grid Grid.Column="1">
+                <Grid Grid.Column="2">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     
                     <!-- File Drop Area -->
-                    <Border Grid.Row="0" Style="{StaticResource CardStyle}" Height="220" Margin="0,0,0,24" BorderBrush="{StaticResource SurfaceLightBrush}" BorderThickness="2" CornerRadius="12" Background="Transparent">
+                    <Border Grid.Row="0" Margin="0,0,0,24" BorderBrush="{StaticResource PrimaryBrush}" BorderThickness="2" CornerRadius="16" Background="#116C63FF" Height="240">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Cursor" Value="Hand"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#226C63FF"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
                         <Border.InputBindings>
                             <MouseBinding MouseAction="LeftClick" Command="{Binding PickFileCommand}"/>
                         </Border.InputBindings>
+                        
                         <Grid>
-                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MouseLeftButtonDown="FileSelectArea_MouseLeftButtonDown" Cursor="Hand" Background="Transparent">
-                                <Path Data="M 12,2 L 12,18 M 4,10 L 12,18 L 20,10" Stroke="{StaticResource TextSecondaryBrush}" StrokeThickness="2" HorizontalAlignment="Center" Margin="0,0,0,16"/>
-                                <TextBlock Text="Drop items here or click to browse" Foreground="{StaticResource TextSecondaryBrush}" FontSize="16" FontWeight="Medium" HorizontalAlignment="Center"/>
-                                <TextBlock Text="{Binding SelectedFileInfo}" Foreground="{StaticResource PrimaryBrush}" FontSize="14" HorizontalAlignment="Center" Margin="0,12,0,0" TextTrimming="CharacterEllipsis"/>
+                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MouseLeftButtonDown="FileSelectArea_MouseLeftButtonDown" Background="Transparent" IsHitTestVisible="True">
+                                <Border Width="64" Height="64" Background="{StaticResource PrimaryBrush}" CornerRadius="32" Margin="0,0,0,16" HorizontalAlignment="Center">
+                                    <TextBlock Text="&#xE8F4;" FontFamily="Segoe MDL2 Assets" FontSize="28" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="拖拽文件到此处 或 点击选择" Foreground="{StaticResource TextPrimaryBrush}" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                <TextBlock Text="{Binding SelectedFileInfo}" Foreground="{StaticResource PrimaryBrush}" FontSize="14" HorizontalAlignment="Center" Margin="0,12,0,0" TextTrimming="CharacterEllipsis" MaxWidth="400"/>
                             </StackPanel>
                         </Grid>
                     </Border>
                     
-                    <!-- Actions & Logs -->
-                    <Border Grid.Row="1" Style="{StaticResource CardStyle}">
+                    <!-- Transmission Title & Status -->
+                    <Grid Grid.Row="1" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="传输列表" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Style="{StaticResource ModernButtonStyle}" Width="140" Command="{Binding SendFileCommand}" IsEnabled="{Binding CanSend}">
+                             <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE725;" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="发送文件" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                    
+                    <!-- Logs & Progress -->
+                    <Border Grid.Row="2" Background="{StaticResource SurfaceLightBrush}" CornerRadius="12" Padding="0" Height="200">
                         <Grid>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
                             
-                            <Grid Grid.Row="0" Margin="0,0,0,20">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="Transmission" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
-                                </StackPanel>
-                                <Button Grid.Column="1" Content="Send File" Style="{StaticResource PrimaryButton}" Width="120" Command="{Binding SendFileCommand}" IsEnabled="{Binding CanSend}"/>
-                            </Grid>
-                            
-                            <ProgressBar Grid.Row="1" Height="6" Value="{Binding ProgressValue}" Background="{StaticResource SurfaceLightBrush}" Foreground="{StaticResource PrimaryBrush}" BorderThickness="0" Margin="0,0,0,20"/>
+                            <!-- Progress Bar attached to top -->
+                            <ProgressBar Grid.Row="0" Height="4" Value="{Binding ProgressValue}" Background="Transparent" Foreground="{StaticResource PrimaryBrush}" BorderThickness="0" Margin="0"/>
                             
                             <!-- Simple Log View -->
-                            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="16">
                                 <ItemsControl ItemsSource="{Binding Logs}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding}" Foreground="{StaticResource TextTertiaryBrush}" FontFamily="Consolas" FontSize="12" Margin="0,2"/>
+                                            <TextBlock Text="{Binding}" Foreground="{StaticResource TextSecondaryBrush}" FontFamily="Consolas" FontSize="12" Margin="0,2" TextWrapping="Wrap"/>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
