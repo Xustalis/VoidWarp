@@ -43,12 +43,7 @@ impl BroadcastBeacon {
         }
     }
 
-    fn run_beacon_loop(
-        device_id: String,
-        device_name: String,
-        port: u16,
-        stop: Arc<AtomicBool>,
-    ) {
+    fn run_beacon_loop(device_id: String, device_name: String, port: u16, stop: Arc<AtomicBool>) {
         let payload = build_hello_packet(&device_id, &device_name, port);
         let broadcast_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::BROADCAST), port);
 
@@ -61,12 +56,7 @@ impl BroadcastBeacon {
                             continue;
                         }
                         if let Err(e) = send_via_interface(*v4, &broadcast_addr, &payload) {
-                            tracing::debug!(
-                                "Beacon send via {} ({}): {}",
-                                name,
-                                v4,
-                                e
-                            );
+                            tracing::debug!("Beacon send via {} ({}): {}", name, v4, e);
                         } else {
                             tracing::info!(
                                 "Broadcasting to {} via {} ({})",
@@ -198,7 +188,9 @@ impl BeaconListener {
     ) -> std::io::Result<Self> {
         let socket = UdpSocket::bind(SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), port))?;
         socket.set_broadcast(true)?;
-        socket.set_read_timeout(Some(Duration::from_millis(500))).ok();
+        socket
+            .set_read_timeout(Some(Duration::from_millis(500)))
+            .ok();
         let stop = Arc::new(AtomicBool::new(false));
         let stop_clone = stop.clone();
         let handle = thread::spawn(move || {

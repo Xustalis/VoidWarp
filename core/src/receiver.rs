@@ -3,7 +3,7 @@
 //! TCP-based file receiver for accepting incoming file transfers.
 
 use std::fs::File;
-use std::io::{Read, Write, Seek};
+use std::io::{Read, Seek, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -80,11 +80,11 @@ impl FileReceiverServer {
         let listener = match listener_option {
             Some(l) => l,
             None => {
-                 // Fallback to random if all fixed ports failed
-                 tracing::warn!("All standard ports (42424-42434) in use, falling back to random");
-                 let l = TcpListener::bind("0.0.0.0:0")?;
-                 port = l.local_addr()?.port();
-                 l
+                // Fallback to random if all fixed ports failed
+                tracing::warn!("All standard ports (42424-42434) in use, falling back to random");
+                let l = TcpListener::bind("0.0.0.0:0")?;
+                port = l.local_addr()?.port();
+                l
             }
         };
 
@@ -153,7 +153,7 @@ impl FileReceiverServer {
 
                         // Read the file transfer handshake using the shared protocol
                         use crate::protocol::HandshakeRequest;
-                        
+
                         tracing::info!("Reading file offer handshake from sender...");
                         let handshake = match HandshakeRequest::read_from(&mut stream) {
                             Ok(h) => {
@@ -253,32 +253,36 @@ impl FileReceiverServer {
                 let mut file;
 
                 if save_path.exists() {
-                     // Check existing file for resume
-                     let metadata = std::fs::metadata(save_path)?;
-                     let current_len = metadata.len();
-                     
-                     if current_len > 0 && current_len < info.file_size && info.chunk_size > 0 {
-                         // Calculate valid chunks
-                         let valid_chunks = current_len / (info.chunk_size as u64);
-                         let valid_len = valid_chunks * (info.chunk_size as u64);
-                         
-                         tracing::info!("Found existing file ({:?} bytes), resuming from chunk {}", current_len, valid_chunks);
-                         
-                         // Open and truncate to valid boundary
-                         let mut f = std::fs::OpenOptions::new().write(true).open(save_path)?;
-                         f.set_len(valid_len)?;
-                         f.seek(std::io::SeekFrom::Start(valid_len))?;
-                         
-                         file = f;
-                         start_chunk_index = valid_chunks;
-                         received = valid_len;
-                     } else {
-                         // Overwrite if full, larger, or invalid chunk size
-                         tracing::info!("Overwriting existing file");
-                         file = File::create(save_path)?;
-                     }
+                    // Check existing file for resume
+                    let metadata = std::fs::metadata(save_path)?;
+                    let current_len = metadata.len();
+
+                    if current_len > 0 && current_len < info.file_size && info.chunk_size > 0 {
+                        // Calculate valid chunks
+                        let valid_chunks = current_len / (info.chunk_size as u64);
+                        let valid_len = valid_chunks * (info.chunk_size as u64);
+
+                        tracing::info!(
+                            "Found existing file ({:?} bytes), resuming from chunk {}",
+                            current_len,
+                            valid_chunks
+                        );
+
+                        // Open and truncate to valid boundary
+                        let mut f = std::fs::OpenOptions::new().write(true).open(save_path)?;
+                        f.set_len(valid_len)?;
+                        f.seek(std::io::SeekFrom::Start(valid_len))?;
+
+                        file = f;
+                        start_chunk_index = valid_chunks;
+                        received = valid_len;
+                    } else {
+                        // Overwrite if full, larger, or invalid chunk size
+                        tracing::info!("Overwriting existing file");
+                        file = File::create(save_path)?;
+                    }
                 } else {
-                     file = File::create(save_path)?;
+                    file = File::create(save_path)?;
                 }
 
                 // Send resume index
@@ -335,7 +339,10 @@ impl FileReceiverServer {
                         .collect();
 
                     if calculated_bytes != chunk_checksum_buf {
-                        tracing::warn!("✗ Checksum mismatch for chunk {}, requesting retransmit", chunk_index);
+                        tracing::warn!(
+                            "✗ Checksum mismatch for chunk {}, requesting retransmit",
+                            chunk_index
+                        );
                         // Send ACK with error (1)
                         conn.write_all(&chunk_index.to_be_bytes())?;
                         conn.write_all(&[1u8])?;
@@ -402,7 +409,11 @@ impl FileReceiverServer {
         let stream = self.pending_stream.lock().unwrap().take();
 
         if let Some(info) = transfer {
-            tracing::info!("✗ User rejected transfer: '{}' from '{}'", info.file_name, info.sender_name);
+            tracing::info!(
+                "✗ User rejected transfer: '{}' from '{}'",
+                info.file_name,
+                info.sender_name
+            );
         }
 
         if let Some(mut conn) = stream {

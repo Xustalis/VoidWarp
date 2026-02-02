@@ -5,7 +5,7 @@
 
 mod broadcast;
 
-use broadcast::{BroadcastBeacon, BeaconListener};
+use broadcast::{BeaconListener, BroadcastBeacon};
 use mdns_sd::{Receiver as MdnsReceiver, ServiceDaemon, ServiceEvent, ServiceInfo};
 use std::collections::HashMap;
 use std::net::IpAddr;
@@ -153,11 +153,7 @@ impl DiscoveryManager {
         self.our_service = Some(device_id.to_string());
 
         // Multi-interface UDP beacon so Windows is discoverable by Android on every adapter
-        let beacon = BroadcastBeacon::start(
-            device_id.to_string(),
-            device_name.to_string(),
-            port,
-        );
+        let beacon = BroadcastBeacon::start(device_id.to_string(), device_name.to_string(), port);
         self.beacon = Some(beacon);
 
         tracing::info!(

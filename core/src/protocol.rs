@@ -1,5 +1,5 @@
 //! VoidWarp Transfer Protocol Definitions
-//! 
+//!
 //! This module defines the exact byte layout for the handshake and data transfer.
 
 use std::io::{self, Read, Write};
@@ -44,7 +44,7 @@ impl HandshakeRequest {
         let checksum_bytes = self.file_checksum.as_bytes();
 
         writer.write_all(&[self.version])?;
-        
+
         // Sender Name (limit 255 bytes)
         let sender_len = std::cmp::min(sender_bytes.len(), 255) as u8;
         writer.write_all(&[sender_len])?;
@@ -74,8 +74,11 @@ impl HandshakeRequest {
 
         if version != PROTOCOL_VERSION {
             return Err(io::Error::new(
-                io::ErrorKind::InvalidData, 
-                format!("Protocol version mismatch: Expected {}, got {}", PROTOCOL_VERSION, version)
+                io::ErrorKind::InvalidData,
+                format!(
+                    "Protocol version mismatch: Expected {}, got {}",
+                    PROTOCOL_VERSION, version
+                ),
             ));
         }
 

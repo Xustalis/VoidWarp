@@ -188,8 +188,14 @@ impl TcpFileSender {
                 }
             }
             Err(e) => {
-                tracing::error!("Failed to read accept/reject response: {} (timeout: {:?})", e, HANDSHAKE_TIMEOUT);
-                if e.kind() == std::io::ErrorKind::WouldBlock || e.kind() == std::io::ErrorKind::TimedOut {
+                tracing::error!(
+                    "Failed to read accept/reject response: {} (timeout: {:?})",
+                    e,
+                    HANDSHAKE_TIMEOUT
+                );
+                if e.kind() == std::io::ErrorKind::WouldBlock
+                    || e.kind() == std::io::ErrorKind::TimedOut
+                {
                     return TransferResult::Timeout;
                 }
                 return TransferResult::IoError(format!("Failed to read response: {}", e));
@@ -205,7 +211,10 @@ impl TcpFileSender {
 
         // If resuming, read the resume chunk index from receiver
         let start_chunk = if self.resume_from_chunk > 0 {
-            tracing::info!("Resuming from chunk {} (requested by sender)", self.resume_from_chunk);
+            tracing::info!(
+                "Resuming from chunk {} (requested by sender)",
+                self.resume_from_chunk
+            );
             self.resume_from_chunk
         } else {
             // Check if receiver wants to resume
@@ -280,7 +289,12 @@ impl TcpFileSender {
                 if retries == 0 {
                     tracing::debug!("Sending chunk {} ({} bytes)", chunk_index, bytes_read);
                 } else {
-                    tracing::warn!("Retrying chunk {} (attempt {}/{})", chunk_index, retries + 1, MAX_RETRIES);
+                    tracing::warn!(
+                        "Retrying chunk {} (attempt {}/{})",
+                        chunk_index,
+                        retries + 1,
+                        MAX_RETRIES
+                    );
                 }
 
                 if let Err(e) =
@@ -303,10 +317,16 @@ impl TcpFileSender {
                         break; // ACK received
                     }
                     Ok(false) => {
-                        tracing::warn!("Chunk {} checksum verification failed on receiver, retransmitting", chunk_index);
+                        tracing::warn!(
+                            "Chunk {} checksum verification failed on receiver, retransmitting",
+                            chunk_index
+                        );
                         retries += 1;
                         if retries >= MAX_RETRIES {
-                            tracing::error!("Max retries exceeded due to checksum mismatch for chunk {}", chunk_index);
+                            tracing::error!(
+                                "Max retries exceeded due to checksum mismatch for chunk {}",
+                                chunk_index
+                            );
                             return TransferResult::ChecksumMismatch;
                         }
                     }
@@ -314,7 +334,10 @@ impl TcpFileSender {
                         tracing::error!("Timeout waiting for ACK for chunk {}: {}", chunk_index, e);
                         retries += 1;
                         if retries >= MAX_RETRIES {
-                            tracing::error!("Max retries exceeded due to ACK timeout for chunk {}", chunk_index);
+                            tracing::error!(
+                                "Max retries exceeded due to ACK timeout for chunk {}",
+                                chunk_index
+                            );
                             return TransferResult::Timeout;
                         }
                     }
@@ -385,12 +408,15 @@ impl TcpFileSender {
             .step_by(2)
             .filter_map(|i| u8::from_str_radix(&checksum[i..i + 2], 16).ok())
             .collect();
-        
+
         // Ensure we send exactly 16 bytes
         if checksum_bytes.len() != 16 {
-             return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid checksum length"));
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Invalid checksum length",
+            ));
         }
-        
+
         stream.write_all(&checksum_bytes)?;
 
         stream.flush()?;

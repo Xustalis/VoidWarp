@@ -759,10 +759,7 @@ pub extern "C" fn voidwarp_tcp_sender_create(path: *const c_char) -> *mut FfiTcp
 
 /// Set chunk size for the sender (in bytes)
 #[no_mangle]
-pub extern "C" fn voidwarp_tcp_sender_set_chunk_size(
-    sender: *mut FfiTcpSender,
-    size: usize,
-) {
+pub extern "C" fn voidwarp_tcp_sender_set_chunk_size(sender: *mut FfiTcpSender, size: usize) {
     if !sender.is_null() && size > 0 {
         unsafe {
             (*sender).sender.set_chunk_size(size);
@@ -900,10 +897,7 @@ pub extern "C" fn voidwarp_transport_start_server(port: u16) -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn voidwarp_transport_ping(
-    ip_address: *const c_char,
-    port: u16,
-) -> bool {
+pub extern "C" fn voidwarp_transport_ping(ip_address: *const c_char, port: u16) -> bool {
     if ip_address.is_null() {
         return false;
     }
@@ -915,13 +909,10 @@ pub extern "C" fn voidwarp_transport_ping(
     };
 
     let addr = std::net::SocketAddr::new(ip, port);
-    
+
     // Just try to connect - if we can connect, the port is open and reachable.
     // We don't need a full protocol handshake for a basic liveness check.
-    match std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(2)) {
-        Ok(_) => true,
-        Err(_) => false,
-    }
+    std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(2)).is_ok()
 }
 
 #[cfg(test)]

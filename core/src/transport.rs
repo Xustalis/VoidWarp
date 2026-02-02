@@ -167,7 +167,7 @@ fn handle_connection(
     connections: Arc<Mutex<Vec<SocketAddr>>>,
 ) {
     tracing::debug!("Transport connection handler started for {}", peer);
-    
+
     while let Ok(packet) = read_packet(stream) {
         if packet.header.packet_type == PacketType::Ping {
             tracing::trace!("Received Ping from {}, sending Pong", peer);
@@ -183,11 +183,14 @@ fn handle_connection(
             // Note: This transport layer is for Ping/Pong keep-alive only.
             // File transfers use a separate TCP connection on the FileReceiverServer port.
             // Non-Ping packets here are ignored as they're not part of the keep-alive protocol.
-            tracing::trace!("Received non-Ping packet type {:?} from {} on transport port, ignoring", 
-                           packet.header.packet_type, peer);
+            tracing::trace!(
+                "Received non-Ping packet type {:?} from {} on transport port, ignoring",
+                packet.header.packet_type,
+                peer
+            );
         }
     }
-    
+
     tracing::debug!("Transport connection closed for {}", peer);
     let mut list = connections.lock().unwrap();
     list.retain(|addr| *addr != peer);
