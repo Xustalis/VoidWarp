@@ -1,6 +1,6 @@
 # VoidWarp 🌌
 
-[![CI](https://github.com/Xustalis/VoidWarp/actions/workflows/ci.yml/badge.svg)](https://github.com/Xustalis/VoidWarp/actions/workflows/ci.yml)
+[![CI](https://github.com/XenithCode/VoidWarp/actions/workflows/ci.yml/badge.svg)](https://github.com/XenithCode/VoidWarp/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
 **VoidWarp** 是一个高性能、跨平台的局域网安全文件传输工具。旨在提供比 AirDrop 更广泛的设备支持，同时保持极高的传输速度和安全性。
@@ -27,7 +27,7 @@
 
 ### Windows
 
-- **安装包**：从 [Releases](https://github.com/Xustalis/VoidWarp/releases) 下载 `VoidWarp-Windows-x64-Setup.exe` 或 `VoidWarp-Windows-x64.zip`，解压后运行 `VoidWarp.Windows.exe` 或 `install.bat` 创建快捷方式。
+- **安装包**：从 [Releases](https://github.com/XenithCode/VoidWarp/releases) 下载 `VoidWarp-Windows-x64-Setup.exe` 或 `VoidWarp-Windows-x64.zip`，解压后运行 `VoidWarp.Windows.exe` 或 `install.bat` 创建快捷方式。
 - **Android 扫不到本机**：以管理员身份运行解压目录下的 `setup_firewall.bat` 配置防火墙。
 
 ### 源码构建 (Build from Source)
@@ -35,7 +35,7 @@
 **环境要求**：Rust (Stable)、Windows 需 Visual Studio 2022（.NET Desktop + C++），Android 需 Android Studio（NDK）。
 
 ```bash
-git clone https://github.com/Xustalis/VoidWarp.git
+git clone https://github.com/XenithCode/VoidWarp.git
 cd VoidWarp
 ```
 
@@ -50,26 +50,16 @@ cd VoidWarp
 
 ## 📜 许可证 (License)
 
-Copyright © 2026 Xustalis.
+Copyright © 2024 XenithCode.
 
 本项目采用 **GNU General Public License v3.0 (GPLv3)** 许可证。
 
 *   ✅ **自由使用**: 您可以自由下载、运行和使用本软件。
 *   ✅ **源码共享**: 您可以获取、学习并修改本项目源码。
-*   ✅ **分发要求**: 如果您分发本软件或其修改版本，必须以相同的许可证 (GPLv3) 公开您的源代码。
+*   ⚠️ **分发要求**: 如果您分发本软件或其修改版本，必须以相同的许可证 (GPLv3) 公开您的源代码。
 *   ❌ **闭源商业**: 严禁将本项目源码集成到任何闭源商业软件中。
 
 详见 [LICENSE](LICENSE)。协议与安全设计见 [docs/protocol/](docs/protocol/)。
-
-🌟 欢迎贡献与互动:
-
-*   VoidWarp 的成长离不开你的支持！
-
-*   如果你觉得这个项目不错：请点击右上角的 Star ⭐，这是最大的鼓励！
-
-*   如果你有好的想法：欢迎 Fork 并在自己的分支上尝试。
-
-*   如果你发现了 Bug：请毫不犹豫地提交 Issue 或发起 Pull Request !!!
 
 ---
 

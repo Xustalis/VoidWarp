@@ -5,6 +5,8 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  schedule:
+    - cron: "0 3 * * *"
 
 env:
   CARGO_TERM_COLOR: always
@@ -12,7 +14,7 @@ env:
 jobs:
   core-library:
     name: Core Library (Rust)
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: core
@@ -83,21 +85,36 @@ jobs:
       with:
         targets: aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android
         
-    - name: Setup Android NDK
-      uses: android-actions/setup-android@v3
-      
-    - name: Install cargo-ndk
-      run: cargo install cargo-ndk
-      
-    - name: Build Rust Library for Android
-      working-directory: core
-      run: cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 -o ../platforms/android/app/src/main/jniLibs build --release
-      
     - name: Setup Java
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '17'
+        
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      
+    - name: Install Android NDK
+      run: |
+        yes | sdkmanager --licenses
+        sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;26.1.10909125"
+        echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/26.1.10909125" >> $GITHUB_ENV
+        
+    - name: Configure Android Linkers
+      run: |
+        echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang" >> $GITHUB_ENV
+        echo "CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi26-clang" >> $GITHUB_ENV
+        echo "CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android26-clang" >> $GITHUB_ENV
+        
+    - name: Install cargo-ndk
+      run: cargo install cargo-ndk --locked
+      
+    - name: Build Rust Library for Android
+      working-directory: core
+      run: cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 -o ../platforms/android/app/src/main/jniLibs build --release
+        
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
         
     - name: Build APK
       working-directory: platforms/android
