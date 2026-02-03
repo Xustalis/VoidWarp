@@ -346,10 +346,10 @@
                                 <TextBlock Text="发送文件" Foreground="White" FontWeight="Bold" FontSize="18" VerticalAlignment="Center"/>
                             </StackPanel>
                             
-                            <!-- Send Button (Visible when files selected) -->
+                            <!-- Send Button (Always visible, disabled if invalid) -->
                             <Button HorizontalAlignment="Right" Style="{StaticResource ModernButtonStyle}" Padding="20,6" 
                                     Command="{Binding SendAllFilesCommand}" 
-                                    Visibility="{Binding HasPendingFiles, Converter={StaticResource BoolToVis}}">
+                                    IsEnabled="{Binding CanSend}">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE709;" FontFamily="Segoe MDL2 Assets" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                     <TextBlock Text="立即发送" VerticalAlignment="Center" FontSize="14"/>
@@ -412,13 +412,28 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="当前传输任务" Foreground="{StaticResource PrimaryBrush}" FontWeight="Bold" FontSize="14"/>
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,20,0">
+                                <TextBlock Text="正在传输..." Foreground="{StaticResource PrimaryBrush}" FontWeight="Bold" FontSize="14"/>
                                 <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
+                                
+                                <!-- Progress Bar -->
+                                <Grid Margin="0,10,0,0">
+                                    <ProgressBar Height="8" Value="{Binding ProgressValue}" Minimum="0" Maximum="100" 
+                                                 Background="{StaticResource BackgroundBrush}" Foreground="{StaticResource PrimaryBrush}" BorderThickness="0">
+                                        <ProgressBar.Template>
+                                            <ControlTemplate TargetType="ProgressBar">
+                                                <Grid x:Name="TemplateRoot">
+                                                    <Border Background="{TemplateBinding Background}" CornerRadius="4"/>
+                                                    <Border x:Name="PART_Indicator" Background="{TemplateBinding Foreground}" CornerRadius="4" HorizontalAlignment="Left"/>
+                                                </Grid>
+                                            </ControlTemplate>
+                                        </ProgressBar.Template>
+                                    </ProgressBar>
+                                </Grid>
                             </StackPanel>
                             
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding ProgressValue, StringFormat='{}{0:F1} %'}" Foreground="White" FontWeight="Bold" FontSize="20" VerticalAlignment="Center" Margin="0,0,20,0"/>
+                                <TextBlock Text="{Binding ProgressValue, StringFormat='{}{0:F0}%'}" Foreground="White" FontWeight="Bold" FontSize="24" VerticalAlignment="Center" Margin="0,0,20,0"/>
                                 <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource CaptionButtonStyle}" Width="32" Height="32" Command="{Binding CancelTransferCommand}"/>
                             </StackPanel>
                         </Grid>
