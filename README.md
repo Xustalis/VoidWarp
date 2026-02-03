@@ -3,7 +3,7 @@
 [![CI](https://github.com/XenithCode/VoidWarp/actions/workflows/ci.yml/badge.svg)](https://github.com/XenithCode/VoidWarp/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
-**VoidWarp** 是一个高性能、跨平台的局域网安全文件传输工具。旨在提供比 AirDrop 更广泛的设备支持，同时保持极高的传输速度和安全性。
+**VoidWarp** 是一个高性能、跨平台的局域网安全文件传输工具。旨在提供广泛的设备支持，保持极高的传输速度和安全性。
 
 ---
 
@@ -52,7 +52,7 @@ cd VoidWarp
 
 ## 📜 许可证 (License)
 
-Copyright © 2024 XenithCode.
+Copyright © 2024 Xustalis.
 
 本项目采用 **GNU General Public License v3.0 (GPLv3)** 许可证。
 
