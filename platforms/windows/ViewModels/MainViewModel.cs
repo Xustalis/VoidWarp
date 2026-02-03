@@ -1,8 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows;
@@ -48,6 +49,12 @@ namespace VoidWarp.Windows.ViewModels
         /// Thread-safe: all updates go through Dispatcher.
         /// </summary>
         public ObservableCollection<string> Logs { get; } = new();
+
+        /// <summary>
+        /// Files pending to be sent (queue for multi-file sending).
+        /// Thread-safe: all updates go through Dispatcher.
+        /// </summary>
+        public ObservableCollection<PendingFileInfo> PendingFiles { get; } = new();
 
         #endregion
 
@@ -260,9 +267,14 @@ namespace VoidWarp.Windows.ViewModels
         public bool HasPeerSelected => SelectedPeer != null;
 
         /// <summary>
-        /// True if send operation can proceed.
+        /// True if send operation can proceed (device + files ready).
         /// </summary>
-        public bool CanSend => HasFileSelected && HasPeerSelected && !IsSending;
+        public bool CanSend => HasPendingFiles && HasPeerSelected && !IsSending;
+
+        /// <summary>
+        /// True if there are files in the pending queue.
+        /// </summary>
+        public bool HasPendingFiles => PendingFiles.Count > 0;
 
         /// <summary>
         /// Local IP addresses info for display (matches Android: 本机IP).
@@ -291,9 +303,13 @@ namespace VoidWarp.Windows.ViewModels
         #region Commands
 
         public ICommand ScanCommand { get; }
-        public ICommand SendFileCommand { get; }
+        public ICommand SendFileCommand { get; } // Legacy - now sends all
+        public ICommand SendAllFilesCommand { get; } // Send all pending files
         public ICommand ToggleReceiverCommand { get; }
-        public ICommand SelectFileCommand { get; }
+        public ICommand SelectFileCommand { get; } // Legacy - adds to queue
+        public ICommand PickFileCommand { get; } // Add file(s) to queue
+        public ICommand AddFileCommand { get; } // Add file(s) to queue
+        public ICommand RemoveFileCommand { get; } // Remove file from queue
         public ICommand ClearLogsCommand { get; }
         public ICommand TestConnectionCommand { get; }
         public ICommand OpenDownloadsCommand { get; }
@@ -324,9 +340,13 @@ namespace VoidWarp.Windows.ViewModels
 
             // Initialize commands
             ScanCommand = new RelayCommand(_ => ToggleScan());
-            SendFileCommand = new RelayCommand(async _ => await SendFileAsync(), _ => CanSend);
+            SendFileCommand = new RelayCommand(async _ => await SendAllFilesAsync(), _ => CanSend);
+            SendAllFilesCommand = new RelayCommand(async _ => await SendAllFilesAsync(), _ => CanSend);
             ToggleReceiverCommand = new RelayCommand(_ => ToggleReceiver());
-            SelectFileCommand = new RelayCommand(_ => SelectFile());
+            SelectFileCommand = new RelayCommand(_ => AddFileToPendingQueue());
+            PickFileCommand = new RelayCommand(_ => AddFileToPendingQueue());
+            AddFileCommand = new RelayCommand(_ => AddFileToPendingQueue());
+            RemoveFileCommand = new RelayCommand(file => RemoveFileFromQueue(file as PendingFileInfo));
             ClearLogsCommand = new RelayCommand(_ => ClearLogs());
             TestConnectionCommand = new RelayCommand(peer => TestConnection(peer as PeerItem));
             OpenDownloadsCommand = new RelayCommand(_ => OpenDownloadsFolder());
@@ -498,6 +518,164 @@ namespace VoidWarp.Windows.ViewModels
                 }
             }
         }
+
+        /// <summary>
+        /// Add a file to the pending files queue (new multi-file workflow).
+        /// </summary>
+        private void AddFileToPendingQueue()
+        {
+            var dialog = new OpenFileDialog
+            {
+                Title = "选择要发送的文件",
+                Filter = "All Files (*.*)|*.*",
+                CheckFileExists = true,
+                Multiselect = true // Allow multi-selection
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                InvokeOnUI(() =>
+                {
+                    foreach (var filePath in dialog.FileNames)
+                    {
+                        try
+                        {
+                            var fileInfo = new FileInfo(filePath);
+                            
+                            // Check if file is already in queue
+                            if (PendingFiles.Any(f => f.FilePath == filePath))
+                            {
+                                AddLog($"文件已在队列中: {fileInfo.Name}");
+                                continue;
+                            }
+
+                            var pendingFile = new PendingFileInfo
+                            {
+                                FilePath = filePath,
+                                FileSize = fileInfo.Length
+                            };
+
+                            PendingFiles.Add(pendingFile);
+                            AddLog($"已添加: {fileInfo.Name} ({FormatSize(fileInfo.Length)})");
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"无法添加文件: {Path.GetFileName(filePath)} - {ex.Message}");
+                        }
+                    }
+
+                    OnPropertyChanged(nameof(HasPendingFiles));
+                    OnPropertyChanged(nameof(CanSend));
+                    
+                    if (dialog.FileNames.Length > 0)
+                    {
+                        StatusMessage = $"{PendingFiles.Count} 个文件待发送";
+                    }
+                });
+            }
+        }
+
+        /// <summary>
+        /// Remove a file from the pending files queue.
+        /// </summary>
+        private void RemoveFileFromQueue(PendingFileInfo? file)
+        {
+            if (file == null) return;
+
+            InvokeOnUI(() =>
+            {
+                PendingFiles.Remove(file);
+                AddLog($"已移除: {file.FileName}");
+                OnPropertyChanged(nameof(HasPendingFiles));
+                OnPropertyChanged(nameof(CanSend));
+                StatusMessage = PendingFiles.Count > 0 
+                    ? $"{PendingFiles.Count} 个文件待发送" 
+                    : "Ready";
+            });
+        }
+
+        /// <summary>
+        /// Send all pending files sequentially (matches Android behavior).
+        /// </summary>
+        private async Task SendAllFilesAsync()
+        {
+            if (SelectedPeer == null || !HasPendingFiles)
+            {
+                AddLog("请先选择设备和文件");
+                return;
+            }
+
+            var filesToSend = PendingFiles.ToList();
+            var peer = SelectedPeer;
+            var successCount = 0;
+
+            InvokeOnUI(() =>
+            {
+                IsSending = true;
+                ProgressValue = 0;
+            });
+
+            try
+            {
+                for (int i = 0; i < filesToSend.Count; i++)
+                {
+                    var file = filesToSend[i];
+                    
+                    InvokeOnUI(() =>
+                    {
+                        StatusMessage = $"正在发送 ({i + 1}/{filesToSend.Count}): {file.FileName}";
+                        AddLog($"[{i + 1}/{filesToSend.Count}] 发送: {file.FileName}");
+                    });
+
+                    try
+                    {
+                        await _engine.SendFileAsync(file.FilePath, peer);
+                        successCount++;
+                        
+                        InvokeOnUI(() =>
+                        {
+                            AddLog($"✓ 成功: {file.FileName}");
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        InvokeOnUI(() =>
+                        {
+                            AddLog($"✗ 失败: {file.FileName} - {ex.Message}");
+                        });
+                    }
+
+                    // Small delay between files
+                    await Task.Delay(500);
+                }
+
+                // Final summary
+                InvokeOnUI(() =>
+                {
+                    StatusMessage = $"传输完成: {successCount}/{filesToSend.Count} 个文件成功";
+                    AddLog($"传输完成: 成功 {successCount}/{filesToSend.Count}");
+                    
+                    // Clear pending files if all succeeded
+                    if (successCount == filesToSend.Count)
+                    {
+                        PendingFiles.Clear();
+                        OnPropertyChanged(nameof(HasPendingFiles));
+                        OnPropertyChanged(nameof(CanSend));
+                    }
+
+                    MessageBox.Show(
+                        $"传输完成！\n\n成功: {successCount}\n失败: {filesToSend.Count - successCount}",
+                        "VoidWarp",
+                        MessageBoxButton.OK,
+                        successCount == filesToSend.Count ? MessageBoxImage.Information : MessageBoxImage.Warning);
+                });
+            }
+            finally
+            {
+                InvokeOnUI(() => IsSending = false);
+            }
+        }
+
 
         private void ClearLogs()
         {
