@@ -335,6 +335,74 @@
                 </Grid.RowDefinitions>
 
                 
+                <!-- File Action Panel (Visible when Idle) -->
+                <Border Grid.Row="0" Margin="0,0,0,20" Background="{StaticResource SidebarBrush}" CornerRadius="16" Padding="25"
+                        Visibility="{Binding IsTransferring, Converter={StaticResource InverseBoolToVis}}">
+                    <StackPanel>
+                        <!-- Header -->
+                        <Grid Margin="0,0,0,20">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="White" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <TextBlock Text="发送文件" Foreground="White" FontWeight="Bold" FontSize="18" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            
+                            <!-- Send Button (Visible when files selected) -->
+                            <Button HorizontalAlignment="Right" Style="{StaticResource ModernButtonStyle}" Padding="20,6" 
+                                    Command="{Binding SendAllFilesCommand}" 
+                                    Visibility="{Binding HasPendingFiles, Converter={StaticResource BoolToVis}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE709;" FontFamily="Segoe MDL2 Assets" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="立即发送" VerticalAlignment="Center" FontSize="14"/>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+
+                        <!-- Empty State / File Picker -->
+                        <Button Content="点击选择文件" Style="{StaticResource GhostButtonStyle}" BorderThickness="1" BorderBrush="#33FFFFFF" 
+                                Height="80" FontSize="15" Command="{Binding PickFileCommand}"
+                                Visibility="{Binding HasPendingFiles, Converter={StaticResource InverseBoolToVis}}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="12">
+                                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                            <TextBlock Text="&#xE8F4;" FontFamily="Segoe MDL2 Assets" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,8" Foreground="{StaticResource PrimaryBrush}"/>
+                                            <TextBlock Text="点击选择要发送的文件" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+
+                        <!-- Pending Files List (Visible when files selected) -->
+                        <StackPanel Visibility="{Binding HasPendingFiles, Converter={StaticResource BoolToVis}}">
+                            <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto" Margin="0,0,0,15">
+                                <ItemsControl ItemsSource="{Binding PendingFiles}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{StaticResource BackgroundBrush}" CornerRadius="8" Padding="12,8" Margin="0,0,0,6">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="&#xE7C3;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                        <TextBlock Text="{Binding FileName}" Foreground="White" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <Button Grid.Column="1" Command="{Binding DataContext.RemoveFileCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" 
+                                                            Style="{StaticResource CaptionButtonStyle}" Tag="&#xE711;" Width="24" Height="24" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                            
+                            <Button Content="+ 添加更多文件" Style="{StaticResource GhostButtonStyle}" HorizontalAlignment="Left" Padding="15,5" FontSize="12" Command="{Binding PickFileCommand}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
                 <!-- Active Transfer Status (Compact Banner) -->
                 <Border Grid.Row="0" Margin="0,0,0,20" Visibility="{Binding IsTransferring, Converter={StaticResource BoolToVis}}">
                     <Border Background="{StaticResource SidebarBrush}" CornerRadius="12" Padding="20,15">
