@@ -160,6 +160,9 @@ namespace VoidWarp.Windows.ViewModels
         }
 
         public ICommand ToggleLogsCommand { get; }
+        public ICommand ClearLogsCommand { get; }
+        public ICommand CopyLogsCommand { get; }
+        public ICommand ConfigureFirewallCommand { get; }
 
 
         /// <summary>
@@ -352,13 +355,11 @@ namespace VoidWarp.Windows.ViewModels
         public ICommand PickFileCommand { get; } // Add file(s) to queue
         public ICommand AddFileCommand { get; } // Add file(s) to queue
         public ICommand RemoveFileCommand { get; } // Remove file from queue
-        public ICommand ClearLogsCommand { get; }
         public ICommand TestConnectionCommand { get; }
         public ICommand OpenDownloadsCommand { get; }
         public ICommand AddManualPeerCommand { get; }
         public ICommand DeleteReceivedFileCommand { get; }
         public ICommand CancelTransferCommand { get; }
-        public ICommand ConfigureFirewallCommand { get; }
         public ICommand OpenFileCommand { get; }
         public ICommand ClearAllHistoryCommand { get; }
         public ICommand RemoveHistoryItemCommand { get; }
@@ -403,9 +404,12 @@ namespace VoidWarp.Windows.ViewModels
             CancelTransferCommand = new RelayCommand(_ => CancelTransfer());
             ConfigureFirewallCommand = new RelayCommand(_ => Core.FirewallHelper.RunFirewallSetupScript());
             ToggleLogsCommand = new RelayCommand(_ => ShowLogs = !ShowLogs);
+            ClearLogsCommand = new RelayCommand(_ => InvokeOnUI(() => Logs.Clear()));
+            CopyLogsCommand = new RelayCommand(_ => CopyLogsToClipboard());
             OpenFileCommand = new RelayCommand(file => OpenReceivedFile(file as ReceivedFileInfo));
             ClearAllHistoryCommand = new RelayCommand(_ => ClearAllHistory(), _ => !IsTransferring);
             RemoveHistoryItemCommand = new RelayCommand(file => RemoveHistoryItem(file as ReceivedFileInfo));
+            CopyLogsCommand = new RelayCommand(_ => CopyLogsToClipboard());
 
             // Start history sync timer
             StartHistorySyncTimer();
@@ -1308,6 +1312,23 @@ namespace VoidWarp.Windows.ViewModels
             catch (Exception ex)
             {
                 AddLog($"无法打开文件: {ex.Message}");
+            }
+        }
+
+        private void CopyLogsToClipboard()
+        {
+            try
+            {
+                var logContent = string.Join(Environment.NewLine, Logs);
+                if (!string.IsNullOrEmpty(logContent))
+                {
+                    Clipboard.SetText(logContent);
+                    MessageBox.Show("日志已复制到剪贴板", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"复制日志失败: {ex.Message}");
             }
         }
     }

@@ -552,7 +552,7 @@
 
 
                 <!-- Technical Logs Overlay (Drawer-like) -->
-                <Border Grid.RowSpan="3" Background="#EE1A1A2E" CornerRadius="16" Margin="0" Visibility="{Binding ShowLogs, Converter={StaticResource BoolToVis}}" Panel.ZIndex="100">
+                <Border Grid.RowSpan="3" Background="#1A1A2E" CornerRadius="16" Margin="0" Visibility="{Binding ShowLogs, Converter={StaticResource BoolToVis}}" Panel.ZIndex="100">
                     <Grid Margin="30">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -577,7 +577,10 @@
                             </ScrollViewer>
                         </Border>
                         
-                        <Button Grid.Row="2" Content="清空日志" Margin="0,20,0,0" HorizontalAlignment="Right" Style="{StaticResource SecondaryButtonStyle}" Padding="20,8" Command="{Binding ClearLogsCommand}"/>
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+                            <Button Content="复制日志" Margin="0,0,10,0" Style="{StaticResource SecondaryButtonStyle}" Padding="20,8" Command="{Binding CopyLogsCommand}"/>
+                            <Button Content="清空日志" Style="{StaticResource SecondaryButtonStyle}" Padding="20,8" Command="{Binding ClearLogsCommand}"/>
+                        </StackPanel>
                     </Grid>
                 </Border>
 
