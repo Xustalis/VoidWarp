@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:VoidWarp.Windows"
         mc:Ignorable="d"
-        Title="VoidWarp" 
+        Title="虚空传送" 
         Height="720" Width="1080"
         MinHeight="600" MinWidth="900"
         WindowStartupLocation="CenterScreen"
@@ -23,40 +23,29 @@
     </WindowChrome.WindowChrome>
 
     <Window.Resources>
-        <!-- ==================== Theme Colors from Android ==================== -->
-        <!-- Deep Space Blue Background (#1A1A2E) -->
+        <!-- ==================== Theme Colors ==================== -->
         <Color x:Key="BackgroundColor">#1A1A2E</Color>
-        <!-- Surface Blue (#16213E) -->
-        <Color x:Key="SurfaceColor">#16213E</Color>
-        <!-- Lighter Surface / Cards (#2A2A4A) -->
-        <Color x:Key="SurfaceLightColor">#2A2A4A</Color>
+        <Color x:Key="SidebarColor">#1E1E3F</Color>
+        <Color x:Key="SurfaceColor">#252545</Color>
+        <Color x:Key="SurfaceLightColor">#2A2A5A</Color>
         
-        <!-- Primary Neon Purple (#6C63FF) -->
         <Color x:Key="PrimaryColor">#6C63FF</Color>
-        <!-- Secondary / Muted Purple (#4A4E69) -->
-        <Color x:Key="SecondaryColor">#4A4E69</Color>
-        <!-- Accent Orange (from Android AppColors.Secondary) -->
         <Color x:Key="AccentColor">#FF9800</Color>
         
-        <!-- Text Colors -->
         <Color x:Key="TextPrimaryColor">#FFFFFFFF</Color>
         <Color x:Key="TextSecondaryColor">#B0B0C0</Color>
         
-        <!-- Brushes -->
         <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}"/>
+        <SolidColorBrush x:Key="SidebarBrush" Color="{StaticResource SidebarColor}"/>
         <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
         <SolidColorBrush x:Key="SurfaceLightBrush" Color="{StaticResource SurfaceLightColor}"/>
         <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource PrimaryColor}"/>
-        <SolidColorBrush x:Key="SecondaryBrush" Color="{StaticResource SecondaryColor}"/>
         <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
         <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}"/>
         <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}"/>
 
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <local:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
-
-        <!-- App Icon Resource -->
-        <BitmapImage x:Key="AppIcon" UriSource="Assets/app.ico"/>
 
         <!-- ==================== Styles ==================== -->
         
@@ -81,10 +70,6 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter Property="Background" Value="{StaticResource SurfaceLightBrush}"/>
-                                <Setter Property="Foreground" Value="White"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
                                 <Setter Property="Foreground" Value="White"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -136,6 +121,11 @@
             </Setter>
         </Style>
 
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ModernButtonStyle}">
+            <Setter Property="Background" Value="{StaticResource SurfaceLightBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
         <!-- Ghost / Outline Button Style -->
         <Style x:Key="GhostButtonStyle" TargetType="Button" BasedOn="{StaticResource ModernButtonStyle}">
             <Setter Property="Background" Value="Transparent"/>
@@ -149,341 +139,374 @@
             </Style.Triggers>
         </Style>
 
+        <Style x:Key="ToggleSwitchStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="50"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Grid>
+                            <Border x:Name="Background" Background="{StaticResource SurfaceLightBrush}" CornerRadius="12"/>
+                            <Border x:Name="Dot" Background="White" Width="18" Height="18" CornerRadius="9" HorizontalAlignment="Left" Margin="3">
+                                <Border.RenderTransform>
+                                    <TranslateTransform X="0"/>
+                                </Border.RenderTransform>
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Background" Property="Background" Value="{StaticResource PrimaryBrush}"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Dot" Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)" To="26" Duration="0:0:0.15"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Dot" Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)" To="0" Duration="0:0:0.15"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
     
-    <!-- Main Window Border -->
-    <Border Background="{StaticResource BackgroundBrush}" 
-            CornerRadius="0" 
-            BorderThickness="1" 
-            BorderBrush="{StaticResource SurfaceBrush}">
+    <Border Background="{StaticResource BackgroundBrush}" CornerRadius="0" BorderThickness="0">
         <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- TitleBar -->
-                <RowDefinition Height="*"/>    <!-- Content -->
-            </Grid.RowDefinitions>
+            <!-- Background Decoration (Optional, matching Android style gradients) -->
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
             
-            <!-- Custom TitleBar -->
-            <Grid Grid.Row="0" Height="40" Background="{StaticResource SurfaceBrush}">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+            <!-- Width Correction for Grip -->
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Sidebar -->
+            <Grid Grid.Column="0" Grid.RowSpan="2" Background="{StaticResource SidebarBrush}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- Title & Downloads -->
+                    <RowDefinition Height="Auto"/> <!-- Device ID -->
+                    <RowDefinition Height="Auto"/> <!-- Receive Toggle -->
+                    <RowDefinition Height="Auto"/> <!-- Diagnostic Info -->
+                    <RowDefinition Height="*"/>    <!-- Nearby Peers -->
+                    <RowDefinition Height="Auto"/> <!-- Bottom Buttons -->
+                </Grid.RowDefinitions>
                 
-                <!-- Icon & Title -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="16,0,0,0">
-                    <Image Source="{StaticResource AppIcon}" Width="20" Height="20" VerticalAlignment="Center" Margin="0,0,12,0" RenderOptions.BitmapScalingMode="HighQuality"/>
-                    <TextBlock Text="VoidWarp" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="ExtraBold" FontSize="14" VerticalAlignment="Center"/>
+                <!-- Title & Downloads Button -->
+                <Grid Margin="25,45,25,15">
+                    <TextBlock Text="虚空传送" Foreground="{StaticResource PrimaryBrush}" FontSize="32" FontWeight="ExtraBold"/>
+                    <Button Content="已接收文件" HorizontalAlignment="Right" VerticalAlignment="Center" 
+                            Style="{StaticResource SecondaryButtonStyle}" Padding="10,5" FontSize="11"
+                            Command="{Binding OpenDownloadsCommand}"/>
+                </Grid>
+                
+                <!-- Device ID Badge -->
+                <Border Grid.Row="1" Margin="25,0,25,25" Background="#33FF9800" CornerRadius="4" HorizontalAlignment="Left" Padding="8,4">
+                    <TextBlock Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" FontSize="11">
+                        <Run Text="设备ID: "/>
+                        <Run Text="{Binding DeviceId, Mode=OneWay}"/>
+                    </TextBlock>
+                </Border>
+                
+                <!-- Receive Card -->
+                <Border Grid.Row="2" Margin="25,0,25,25" Background="{StaticResource SurfaceBrush}" CornerRadius="12" Padding="15">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Width="40" Height="40" Background="{StaticResource SurfaceLightBrush}" CornerRadius="8" Margin="0,0,12,0">
+                            <TextBlock Text="&#xE8F4;" FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding ReceiveStatusTitle, Mode=OneWay}" Foreground="White" FontWeight="Bold" FontSize="15"/>
+                            <TextBlock Text="{Binding ReceiveStatusSubtitle, Mode=OneWay}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <ToggleButton Grid.Column="2" Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding IsReceiving}" Command="{Binding ToggleReceiverCommand}"/>
+                    </Grid>
+                </Border>
+                
+                <!-- Diagnostic Info -->
+                <StackPanel Grid.Row="3" Margin="25,0,25,25">
+                    <TextBlock Text="诊断信息" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" FontWeight="Bold" Margin="0,0,0,8"/>
+                    <TextBlock Text="{Binding LocalIpInfo, Mode=OneWay, StringFormat='本机 IP: {0}'}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,0,4"/>
+                    <Grid>
+                        <TextBlock Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" VerticalAlignment="Center">
+                            <Run Text="发现: "/>
+                            <Run Text="{Binding DiscoveryStatusLabel, Mode=OneWay}" Foreground="{StaticResource PrimaryBrush}"/>
+                            <Run Text=" | 监听: "/>
+                            <Run Text="{Binding ReceiverPort, Mode=OneWay}"/>
+                        </TextBlock>
+                        <Button Content="调试日志" HorizontalAlignment="Right" Style="{StaticResource GhostButtonStyle}" BorderThickness="0" Padding="5,2" FontSize="10" Command="{Binding ToggleLogsCommand}"/>
+                    </Grid>
                 </StackPanel>
                 
-                <!-- Window Controls -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <Button Style="{StaticResource CaptionButtonStyle}" Tag="&#xE921;" Click="MinimizeButton_Click"/>
-                    <Button x:Name="MaximizeButton" Style="{StaticResource CaptionButtonStyle}" Tag="&#xE922;" Click="MaximizeButton_Click"/>
-                    <Button Style="{StaticResource CloseButtonStyle}" Tag="&#xE8BB;" Click="CloseButton_Click"/>
-                </StackPanel>
+                <!-- Nearby Peers -->
+                <Border Grid.Row="4" Margin="25,0,25,25" Background="{StaticResource SurfaceBrush}" CornerRadius="12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="附近设备" Margin="15,12" Foreground="White" FontWeight="Bold" FontSize="14"/>
+                        
+                        <!-- Empty State -->
+                        <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding HasNoPeers, Converter={StaticResource BoolToVis}}">
+                            <!-- Chain Link Icon -->
+                            <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" FontSize="40" Foreground="{StaticResource SurfaceLightBrush}" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                            <TextBlock Text="未发现设备" Foreground="{StaticResource TextSecondaryBrush}" FontSize="13" HorizontalAlignment="Center"/>
+                            <Button Content="手动添加" Style="{StaticResource GhostButtonStyle}" Margin="0,15,0,0" Padding="15,5" 
+                                    Command="{Binding AddManualPeerCommand}" BorderBrush="{StaticResource PrimaryBrush}" BorderThickness="1" Foreground="{StaticResource PrimaryBrush}" Background="Transparent"/>
+                        </StackPanel>
+                        
+                        <!-- Peers List -->
+                        <ListBox Grid.Row="1" ItemsSource="{Binding Peers}" SelectedItem="{Binding SelectedPeer}" Background="Transparent" BorderThickness="0" Margin="5" Visibility="{Binding HasNoPeers, Converter={StaticResource InverseBoolToVis}}">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListBoxItem">
+                                                <Border x:Name="ItemBorder" Background="Transparent" CornerRadius="8" Padding="10" Margin="0,2">
+                                                    <ContentPresenter/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource SurfaceLightBrush}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource PrimaryBrush}"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Width="30" Height="30" CornerRadius="15" Background="{StaticResource PrimaryBrush}" Margin="0,0,10,0">
+                                            <TextBlock Text="&#xE7F4;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding DeviceName}" Foreground="White" FontWeight="SemiBold" FontSize="13"/>
+                                            <TextBlock Text="{Binding DisplayName}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </Border>
+                
+                <!-- Sidebar Bottom Buttons -->
+                <Grid Grid.Row="5" Margin="25,0,25,25">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="{Binding ScanButtonText}" Style="{StaticResource ModernButtonStyle}" Margin="0,0,8,0" Command="{Binding ScanCommand}"/>
+                    <Button Grid.Column="1" Content="+ 添加" Style="{StaticResource SecondaryButtonStyle}" Margin="8,0,0,0" Command="{Binding AddManualPeerCommand}"/>
+                </Grid>
             </Grid>
             
             <!-- Main Content Area -->
-            <Grid Grid.Row="1" Margin="24">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="340"/>
-                    <ColumnDefinition Width="24"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                
-                <!-- Left Sidebar -->
-                <Grid Grid.Column="0">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    
-                    <!-- Device Identity Card -->
-                    <Border Grid.Row="0" Background="{StaticResource SurfaceLightBrush}" CornerRadius="12" Padding="20" Margin="0,0,0,20">
-                        <StackPanel>
-                            <TextBlock Text="本机设备" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" FontWeight="Bold" Margin="0,0,0,8"/>
-                            <TextBlock Text="{Binding DeviceId}" Foreground="White" FontSize="20" FontWeight="Bold" FontFamily="Consolas" TextTrimming="CharacterEllipsis"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                <Ellipse Width="8" Height="8" Fill="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBlock Text="在线" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" FontSize="12"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
-                    
-                    <!-- Nearby Devices List -->
-                    <Border Grid.Row="1" Background="{StaticResource SurfaceLightBrush}" CornerRadius="12">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            
-                            <!-- List Header -->
-                            <Grid Grid.Row="0" Margin="20,16">
-                                <TextBlock Text="附近设备" Foreground="{StaticResource TextPrimaryBrush}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                <Button Command="{Binding ScanCommand}" Style="{StaticResource CaptionButtonStyle}" Tag="&#xE72C;" 
-                                        HorizontalAlignment="Right" Width="36" Height="36" Background="Transparent" Foreground="{StaticResource PrimaryBrush}"/>
-                            </Grid>
+            <Grid Grid.Column="1" Grid.Row="1" Margin="25">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- Compact Status -->
+                    <RowDefinition Height="*"/>    <!-- History -->
+                </Grid.RowDefinitions>
 
-                            <!-- Peers List -->
-                            <ListBox Grid.Row="1" 
-                                     ItemsSource="{Binding Peers}"
-                                     SelectedItem="{Binding SelectedPeer}"
-                                     Background="Transparent"
-                                     BorderThickness="0"
-                                     Margin="10,0,10,10"
-                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                                <ListBox.ItemContainerStyle>
-                                    <Style TargetType="ListBoxItem">
-                                        <Setter Property="Margin" Value="0,4"/>
-                                        <Setter Property="Template">
-                                            <Setter.Value>
-                                                <ControlTemplate TargetType="ListBoxItem">
-                                                    <Border x:Name="ItemBorder" Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="12" Cursor="Hand">
-                                                        <ContentPresenter/>
-                                                    </Border>
-                                                    <ControlTemplate.Triggers>
-                                                        <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter TargetName="ItemBorder" Property="Background" Value="#38384E"/>
-                                                        </Trigger>
-                                                        <Trigger Property="IsSelected" Value="True">
-                                                            <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource PrimaryBrush}"/>
-                                                            <Setter Property="Foreground" Value="White"/>
-                                                        </Trigger>
-                                                    </ControlTemplate.Triggers>
-                                                </ControlTemplate>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
-                                </ListBox.ItemContainerStyle>
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Border Width="36" Height="36" CornerRadius="18" Background="#33FFFFFF" Margin="0,0,12,0">
-                                                <TextBlock Text="&#xE7F4;" FontFamily="Segoe MDL2 Assets" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Foreground="White"/>
-                                            </Border>
-                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding DeviceName}" FontWeight="SemiBold" FontSize="14" Foreground="White"/>
-                                                <TextBlock Text="{Binding DisplayName}" Opacity="0.7" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
+                
+                <!-- Active Transfer Status (Compact Banner) -->
+                <Border Grid.Row="0" Margin="0,0,0,20" Visibility="{Binding IsTransferring, Converter={StaticResource BoolToVis}}">
+                    <Border Background="{StaticResource SidebarBrush}" CornerRadius="12" Padding="20,15">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
                             
-                            <!-- Empty State -->
-                            <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding HasNoPeers, Converter={StaticResource BoolToVis}}">
-                                <TextBlock Text="&#xE9F5;" FontFamily="Segoe MDL2 Assets" FontSize="32" Foreground="{StaticResource SecondaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                                <TextBlock Text="正在扫描..." Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="当前传输任务" Foreground="{StaticResource PrimaryBrush}" FontWeight="Bold" FontSize="14"/>
+                                <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                            
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding ProgressValue, StringFormat='{}{0:F1} %'}" Foreground="White" FontWeight="Bold" FontSize="20" VerticalAlignment="Center" Margin="0,0,20,0"/>
+                                <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets" Style="{StaticResource CaptionButtonStyle}" Width="32" Height="32" Command="{Binding CancelTransferCommand}"/>
                             </StackPanel>
                         </Grid>
                     </Border>
-                    
-                    <!-- Manual Add Button -->
-                    <Button Grid.Row="2" Content="手动添加设备" Style="{StaticResource GhostButtonStyle}" Margin="0,16,0,0" Command="{Binding AddManualPeerCommand}"/>
-                </Grid>
+                </Border>
+
                 
-                <!-- Right Content -->
-                <Grid Grid.Column="2">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    
-                    <!-- File Drop Area -->
-                    <Border Grid.Row="0" Margin="0,0,0,24" BorderBrush="{StaticResource PrimaryBrush}" BorderThickness="2" CornerRadius="16" Background="#116C63FF" Height="240">
-                        <Border.Style>
-                            <Style TargetType="Border">
-                                <Setter Property="Cursor" Value="Hand"/>
-                                <Style.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="#226C63FF"/>
-                                    </Trigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Border.Style>
-                        <Border.InputBindings>
-                            <MouseBinding MouseAction="LeftClick" Command="{Binding PickFileCommand}"/>
-                        </Border.InputBindings>
+                <!-- Recent Transfers / Received Files Card (Major Area) -->
+                <Border Grid.Row="1" Background="{StaticResource SidebarBrush}" CornerRadius="16" Padding="25">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
                         
-                        <Grid>
-                            <!-- Empty state -->
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding HasPendingFiles, Converter={StaticResource InverseBoolToVis}}">
-                                <Border Width="64" Height="64" Background="{StaticResource PrimaryBrush}" CornerRadius="32" Margin="0,0,0,16" HorizontalAlignment="Center">
-                                    <TextBlock Text="&#xE8F4;" FontFamily="Segoe MDL2 Assets" FontSize="28" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="点击选择文件" Foreground="{StaticResource TextPrimaryBrush}" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                                <TextBlock Text="支持多文件选择" Foreground="{StaticResource TextSecondaryBrush}" FontSize="13" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                        <Grid Grid.Row="0" Margin="0,0,0,20">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="White" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <TextBlock Text="传输记录" Foreground="White" FontWeight="Bold" FontSize="20" VerticalAlignment="Center"/>
                             </StackPanel>
-                            
-                            <!-- Pending files list -->
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16" Visibility="{Binding HasPendingFiles, Converter={StaticResource BoolToVis}}">
-                                <ItemsControl ItemsSource="{Binding PendingFiles}">
+                            <Button Content="一键清空" HorizontalAlignment="Right" Style="{StaticResource GhostButtonStyle}" BorderThickness="0" Padding="12,5" FontSize="12" 
+                                    Command="{Binding ClearAllHistoryCommand}" 
+                                    Visibility="{Binding HasNoReceivedFiles, Converter={StaticResource InverseBoolToVis}}"/>
+                        </Grid>
+
+                        <!-- Empty History Placeholder -->
+                        <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" 
+                                    Visibility="{Binding HasNoReceivedFiles, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="64" Foreground="{StaticResource SurfaceBrush}" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                            <TextBlock Text="暂无传输记录" Foreground="{StaticResource TextSecondaryBrush}" FontSize="16"/>
+                        </StackPanel>
+                        
+                        <!-- History List -->
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding ReceivedFiles}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{StaticResource BackgroundBrush}" CornerRadius="12" Padding="15" Margin="0,0,0,12">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                
+                                                <Border Width="40" Height="40" Background="{StaticResource SurfaceBrush}" CornerRadius="8" Margin="0,0,15,0">
+                                                    <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding FileName}" Foreground="White" FontWeight="SemiBold" FontSize="14" TextTrimming="CharacterEllipsis"/>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                        <TextBlock Text="{Binding SenderName, StringFormat='来自: {0}'}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11"/>
+                                                        <TextBlock Text=" | " Foreground="{StaticResource SurfaceBrush}" FontSize="11" Margin="5,0"/>
+                                                        <TextBlock Text="{Binding FileSize}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                                
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <!-- Status Label (Success/Failed/Deleted) -->
+                                                    <Border Padding="10,4" CornerRadius="4" Margin="0,0,15,0" UseLayoutRounding="True">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Status}" Value="Success">
+                                                                        <Setter Property="Background" Value="#2222EE22"/>
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding Status}" Value="Failed">
+                                                                        <Setter Property="Background" Value="#22EE2222"/>
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding Status}" Value="Deleted">
+                                                                        <Setter Property="Background" Value="#11FFFFFF"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <TextBlock FontSize="10" FontWeight="Bold">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Text" Value="进行中"/>
+                                                                    <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Status}" Value="Success">
+                                                                            <Setter Property="Text" Value="成功"/>
+                                                                            <Setter Property="Foreground" Value="#FF22CC22"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding Status}" Value="Failed">
+                                                                            <Setter Property="Text" Value="失败"/>
+                                                                            <Setter Property="Foreground" Value="#FFFF4444"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding Status}" Value="Deleted">
+                                                                            <Setter Property="Text" Value="已删除"/>
+                                                                            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </Border>
+                                                    
+                                                    <Button Content="打开" Style="{StaticResource GhostButtonStyle}" Padding="15,4" FontSize="11" 
+                                                            Visibility="{Binding FileExists, Converter={StaticResource BoolToVis}}"
+                                                            Command="{Binding DataContext.OpenFileCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
+                                                    <Button Content="&#xE74D;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource TextSecondaryBrush}" Style="{StaticResource CaptionButtonStyle}" Width="32" Height="32" Margin="5,0,0,0"
+                                                            Command="{Binding DataContext.RemoveHistoryItemCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+
+                <!-- Technical Logs Overlay (Drawer-like) -->
+                <Border Grid.RowSpan="3" Background="#EE1A1A2E" CornerRadius="16" Margin="0" Visibility="{Binding ShowLogs, Converter={StaticResource BoolToVis}}" Panel.ZIndex="100">
+                    <Grid Margin="30">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        
+                        <Grid Grid.Row="0" Margin="0,0,0,20">
+                            <TextBlock Text="系统日志" Foreground="White" FontWeight="Bold" FontSize="20" VerticalAlignment="Center"/>
+                            <Button HorizontalAlignment="Right" Command="{Binding ToggleLogsCommand}" Style="{StaticResource CaptionButtonStyle}" Tag="&#xE711;" Width="32" Height="32"/>
+                        </Grid>
+                        
+                        <Border Grid.Row="1" Background="{StaticResource BackgroundBrush}" CornerRadius="10" Padding="15">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding Logs}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="12" Margin="0,0,0,8">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="&#xE7C3;" FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding FileName}" Foreground="White" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                                        <TextBlock Text="{Binding FormattedSize}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,2,0,0"/>
-                                                    </StackPanel>
-                                                    <Button Grid.Column="2" Command="{Binding DataContext.RemoveFileCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource CaptionButtonStyle}" Tag="&#xE711;" Width="32" Height="32" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                                </Grid>
-                                            </Border>
+                                            <TextBlock Text="{Binding}" Foreground="{StaticResource TextSecondaryBrush}" FontFamily="Consolas" FontSize="12" Margin="0,0,0,5" TextWrapping="Wrap"/>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </ScrollViewer>
-                        </Grid>
-                    </Border>
-                    
-                    <!-- Transmission Title & Status -->
-                    <Grid Grid.Row="1" Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel>
-                            <TextBlock Text="传输列表" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
-                        </StackPanel>
-                        <Button Grid.Column="1" Style="{StaticResource ModernButtonStyle}" MinWidth="140" Command="{Binding SendAllFilesCommand}" IsEnabled="{Binding CanSend}">
-                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE725;" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBlock VerticalAlignment="Center">
-                                    <Run Text="发送"/>
-                                    <Run Text="{Binding PendingFiles.Count, Mode=OneWay}" Foreground="{StaticResource AccentBrush}" FontWeight="Bold"/>
-                                    <Run Text="个文件"/>
-                                </TextBlock>
-                            </StackPanel>
-                        </Button>
+                        </Border>
+                        
+                        <Button Grid.Row="2" Content="清空日志" Margin="0,20,0,0" HorizontalAlignment="Right" Style="{StaticResource SecondaryButtonStyle}" Padding="20,8" Command="{Binding ClearLogsCommand}"/>
                     </Grid>
-                    
-                    <!-- Logs & History -->
-                    <Border Grid.Row="2" Background="{StaticResource SurfaceLightBrush}" CornerRadius="12" Padding="0" Height="200">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            
-                            <!-- Progress Bar attached to top -->
-                            <ProgressBar Grid.Row="0" Height="4" Value="{Binding ProgressValue}" Background="Transparent" Foreground="{StaticResource PrimaryBrush}" BorderThickness="0" Margin="0"/>
-                            
-                            <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0" Margin="8,0">
-                                <TabControl.Resources>
-                                    <Style TargetType="TabItem">
-                                        <Setter Property="Template">
-                                            <Setter.Value>
-                                                <ControlTemplate TargetType="TabItem">
-                                                    <Grid>
-                                                        <Border x:Name="Border" Background="Transparent" Margin="0,0,0,-1" Padding="12,8">
-                                                            <ContentPresenter x:Name="ContentSite" VerticalAlignment="Center" HorizontalAlignment="Center" ContentSource="Header" Margin="0,0,0,1"/>
-                                                        </Border>
-                                                    </Grid>
-                                                    <ControlTemplate.Triggers>
-                                                        <Trigger Property="IsSelected" Value="True">
-                                                            <Setter TargetName="Border" Property="Background" Value="Transparent"/>
-                                                            <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}"/>
-                                                            <Setter Property="FontWeight" Value="Bold"/>
-                                                        </Trigger>
-                                                        <Trigger Property="IsSelected" Value="False">
-                                                            <Setter TargetName="Border" Property="Background" Value="Transparent"/>
-                                                            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
-                                                        </Trigger>
-                                                    </ControlTemplate.Triggers>
-                                                </ControlTemplate>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
-                                </TabControl.Resources>
-                                
-                                <!-- Logs Tab -->
-                                <TabItem Header="运行日志">
-                                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8">
-                                        <ItemsControl ItemsSource="{Binding Logs}">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding}" Foreground="{StaticResource TextSecondaryBrush}" FontFamily="Consolas" FontSize="12" Margin="0,2" TextWrapping="Wrap"/>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </ScrollViewer>
-                                </TabItem>
-                                
-                                <!-- History Tab -->
-                                <TabItem Header="接收记录">
-                                    <ListBox ItemsSource="{Binding ReceivedFiles}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                                        <ListBox.ItemContainerStyle>
-                                            <Style TargetType="ListBoxItem">
-                                                <Setter Property="Padding" Value="0"/>
-                                                <Setter Property="Margin" Value="0,4"/>
-                                                <Setter Property="Template">
-                                                    <Setter.Value>
-                                                        <ControlTemplate TargetType="ListBoxItem">
-                                                            <Border Background="{StaticResource SurfaceBrush}" CornerRadius="6" Padding="8,6">
-                                                                <ContentPresenter/>
-                                                            </Border>
-                                                        </ControlTemplate>
-                                                    </Setter.Value>
-                                                </Setter>
-                                            </Style>
-                                        </ListBox.ItemContainerStyle>
-                                        <ListBox.ItemTemplate>
-                                            <DataTemplate>
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    
-                                                    <!-- Icon -->
-                                                    <TextBlock Grid.Column="0" Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                                    
-                                                    <!-- Details -->
-                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding FileName}" Foreground="White" FontSize="13" TextTrimming="CharacterEllipsis"/>
-                                                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                                            <TextBlock Text="{Binding FileSize}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,10,0"/>
-                                                            <TextBlock Text="{Binding SenderName}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,10,0"/>
-                                                            <TextBlock Text="{Binding ReceivedTime, StringFormat='HH:mm'}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11"/>
-                                                        </StackPanel>
-                                                    </StackPanel>
-                                                    
-                                                    <!-- Delete Button -->
-                                                    <Button Grid.Column="2" 
-                                                            Style="{StaticResource CaptionButtonStyle}" 
-                                                            Tag="&#xE74D;" 
-                                                            Width="28" Height="28" 
-                                                            Command="{Binding DataContext.DeleteReceivedFileCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
-                                                            CommandParameter="{Binding}"
-                                                            Foreground="#E53E3E"
-                                                            VerticalAlignment="Center"/>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ListBox.ItemTemplate>
-                                    </ListBox>
-                                </TabItem>
-                            </TabControl>
-                        </Grid>
-                    </Border>
-                    
-                </Grid>
+                </Border>
+
+            </Grid>
+
+            <!-- Title Bar Overlay (for Window Chrome) -->
+            <Grid Grid.Column="0" Grid.ColumnSpan="2" Height="40" VerticalAlignment="Top" Background="Transparent" Panel.ZIndex="1000">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Style="{StaticResource CaptionButtonStyle}" Tag="&#xE921;" Click="MinimizeButton_Click"/>
+                    <Button x:Name="MaximizeButton" Style="{StaticResource CaptionButtonStyle}" Tag="&#xE922;" Click="MaximizeButton_Click"/>
+                    <Button Style="{StaticResource CloseButtonStyle}" Tag="&#xE8BB;" Click="CloseButton_Click"/>
+                </StackPanel>
             </Grid>
         </Grid>
     </Border>
