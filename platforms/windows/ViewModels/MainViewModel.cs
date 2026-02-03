@@ -10,6 +10,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using VoidWarp.Windows.Core;
 
@@ -35,6 +36,10 @@ namespace VoidWarp.Windows.ViewModels
         private bool _disposed;
         private bool _hasPendingTransfer;
         private PendingTransferEventArgs? _pendingTransferInfo;
+        private ReceivedFileInfo? _ongoingTransfer;
+        private readonly HashSet<string> _acceptedPeers = new();
+        private bool _showLogs = false;
+        private DispatcherTimer? _historySyncTimer;
 
         #endregion
 
@@ -143,6 +148,21 @@ namespace VoidWarp.Windows.ViewModels
         public string DiscoveryStatusLabel => IsDiscovering ? "进行中" : "空闲";
 
         /// <summary>
+        /// True when there are no received files in history.
+        /// </summary>
+        public bool HasNoReceivedFiles => ReceivedFiles.Count == 0;
+
+
+        public bool ShowLogs
+        {
+            get => _showLogs;
+            set => SetProperty(ref _showLogs, value);
+        }
+
+        public ICommand ToggleLogsCommand { get; }
+
+
+        /// <summary>
         /// Text for the scan button (matches Android).
         /// </summary>
         public string ScanButtonText => IsDiscovering ? "停止" : "扫描";
@@ -171,7 +191,26 @@ namespace VoidWarp.Windows.ViewModels
         /// <summary>
         /// True if any transfer (send or receive) is in progress.
         /// </summary>
-        public bool IsTransferring => IsSending || _hasPendingTransfer;
+        public bool IsTransferring => IsSending || _hasPendingTransfer || OngoingTransfer != null;
+
+        /// <summary>
+        /// Currently active transfer (only for incoming/outgoing that hasn't reached terminal state).
+        /// </summary>
+        public ReceivedFileInfo? OngoingTransfer
+        {
+            get => _ongoingTransfer;
+            set
+            {
+                if (SetProperty(ref _ongoingTransfer, value))
+                {
+                    OnPropertyChanged(nameof(IsTransferring));
+                    OnPropertyChanged(nameof(HasOngoingTransfer));
+                }
+            }
+        }
+
+        public bool HasOngoingTransfer => OngoingTransfer != null;
+
 
         /// <summary>
         /// Transfer progress (0-100).
@@ -320,6 +359,11 @@ namespace VoidWarp.Windows.ViewModels
         public ICommand DeleteReceivedFileCommand { get; }
         public ICommand CancelTransferCommand { get; }
         public ICommand ConfigureFirewallCommand { get; }
+        public ICommand OpenFileCommand { get; }
+        public ICommand ClearAllHistoryCommand { get; }
+        public ICommand RemoveHistoryItemCommand { get; }
+
+
 
         #endregion
 
@@ -358,6 +402,14 @@ namespace VoidWarp.Windows.ViewModels
             DeleteReceivedFileCommand = new RelayCommand(file => DeleteReceivedFile(file as ReceivedFileInfo));
             CancelTransferCommand = new RelayCommand(_ => CancelTransfer());
             ConfigureFirewallCommand = new RelayCommand(_ => Core.FirewallHelper.RunFirewallSetupScript());
+            ToggleLogsCommand = new RelayCommand(_ => ShowLogs = !ShowLogs);
+            OpenFileCommand = new RelayCommand(file => OpenReceivedFile(file as ReceivedFileInfo));
+            ClearAllHistoryCommand = new RelayCommand(_ => ClearAllHistory(), _ => !IsTransferring);
+            RemoveHistoryItemCommand = new RelayCommand(file => RemoveHistoryItem(file as ReceivedFileInfo));
+
+            // Start history sync timer
+            StartHistorySyncTimer();
+
 
             // Initial log
             AddLog("VoidWarp Windows Client started");
@@ -376,6 +428,8 @@ namespace VoidWarp.Windows.ViewModels
                 // Auto-start receiver and discovery
                 _ = InitializeAsync();
                 _ = LoadHistoryAsync();
+                
+                ReceivedFiles.CollectionChanged += (s, e) => OnPropertyChanged(nameof(HasNoReceivedFiles));
             }
         }
 
@@ -631,6 +685,16 @@ namespace VoidWarp.Windows.ViewModels
                     {
                         StatusMessage = $"正在发送 ({i + 1}/{filesToSend.Count}): {file.FileName}";
                         AddLog($"[{i + 1}/{filesToSend.Count}] 发送: {file.FileName}");
+                        
+                        OngoingTransfer = new ReceivedFileInfo
+                        {
+                            FilePath = file.FilePath,
+                            FileName = file.FileName,
+                            FileSize = FormatSize(file.FileSize),
+                            SenderName = peer.DeviceName,
+                            ReceivedTime = DateTime.Now,
+                            Status = TransferStatus.InProgress
+                        };
                     });
 
                     try
@@ -641,6 +705,12 @@ namespace VoidWarp.Windows.ViewModels
                         InvokeOnUI(() =>
                         {
                             AddLog($"✓ 成功: {file.FileName}");
+                            if (OngoingTransfer != null)
+                            {
+                                OngoingTransfer.Status = TransferStatus.Success;
+                                ReceivedFiles.Insert(0, OngoingTransfer);
+                                OngoingTransfer = null;
+                            }
                         });
                     }
                     catch (Exception ex)
@@ -648,6 +718,12 @@ namespace VoidWarp.Windows.ViewModels
                         InvokeOnUI(() =>
                         {
                             AddLog($"✗ 失败: {file.FileName} - {ex.Message}");
+                            if (OngoingTransfer != null)
+                            {
+                                OngoingTransfer.Status = TransferStatus.Failed;
+                                ReceivedFiles.Insert(0, OngoingTransfer);
+                                OngoingTransfer = null;
+                            }
                         });
                     }
 
@@ -671,9 +747,11 @@ namespace VoidWarp.Windows.ViewModels
 
                     MessageBox.Show(
                         $"传输完成！\n\n成功: {successCount}\n失败: {filesToSend.Count - successCount}",
-                        "VoidWarp",
+                        "虚空传送",
                         MessageBoxButton.OK,
                         successCount == filesToSend.Count ? MessageBoxImage.Information : MessageBoxImage.Warning);
+                    
+                    SaveHistory();
                 });
             }
             finally
@@ -839,46 +917,28 @@ namespace VoidWarp.Windows.ViewModels
                 IsSending = false;
                 _hasPendingTransfer = false;
 
+                if (OngoingTransfer != null)
+                {
+                    // Move to history with terminal state
+                    OngoingTransfer.Status = e.Success ? TransferStatus.Success : TransferStatus.Failed;
+                    ReceivedFiles.Insert(0, OngoingTransfer);
+                    OngoingTransfer = null;
+                    SaveHistory();
+                }
+
                 if (e.Success)
                 {
-                    StatusMessage = "Transfer complete!";
-                    AddLog("✓ Transfer completed successfully");
-                    
-                    var path = GetDownloadsPath();
-                    var result = MessageBox.Show(
-                        $"File transfer completed successfully!\nSaved to: {path}\n\nOpen folder now?",
-                        "Success",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Information);
-                        
-                    if (result == MessageBoxResult.Yes)
-                    {
-                        OpenDownloadsFolder();
-                    }
-
-                    // Add to history
-                    if (_pendingTransferInfo != null)
-                    {
-                        var historyItem = new ReceivedFileInfo
-                        {
-                            FilePath = Path.Combine(GetDownloadsPath(), SanitizeFileName(_pendingTransferInfo.FileName)),
-                            FileName = _pendingTransferInfo.FileName,
-                            FileSize = _pendingTransferInfo.FormattedSize,
-                            SenderName = _pendingTransferInfo.SenderName,
-                            ReceivedTime = DateTime.Now
-                        };
-                        ReceivedFiles.Insert(0, historyItem); // Add to top
-                        SaveHistory();
-                    }
+                    StatusMessage = "传输完成！";
+                    AddLog("✓ 传输任务成功完成");
                 }
                 else
                 {
-                    StatusMessage = $"Failed: {e.ErrorMessage}";
-                    AddLog($"✗ Transfer failed: {e.ErrorMessage}");
+                    StatusMessage = $"传输失败: {e.ErrorMessage}";
+                    AddLog($"✗ 传输异常: {e.ErrorMessage}");
                     
                     MessageBox.Show(
-                        $"Transfer failed:\n{e.ErrorMessage}",
-                        "Error",
+                        $"传输失败：\n{e.ErrorMessage}",
+                        "错误",
                         MessageBoxButton.OK,
                         MessageBoxImage.Error);
                 }
@@ -893,52 +953,78 @@ namespace VoidWarp.Windows.ViewModels
                 _pendingTransferInfo = e;
                 OnPropertyChanged(nameof(IsTransferring));
                 
-                AddLog($"Incoming: {e.FileName} ({e.FormattedSize}) from {e.SenderName}");
+                AddLog($"收到请求: {e.FileName} ({e.FormattedSize}) 来自 {e.SenderName}");
+
+                // Auto-accept if this peer was already approved in this session
+                if (_acceptedPeers.Contains(e.SenderAddress) || _acceptedPeers.Contains(e.SenderName))
+                {
+                    AcceptIncomingTransfer(e);
+                    return;
+                }
 
                 var result = MessageBox.Show(
-                    $"Incoming file transfer\n\n" +
-                    $"From: {e.SenderName}\n" +
-                    $"Address: {e.SenderAddress}\n" +
-                    $"File: {e.FileName}\n" +
-                    $"Size: {e.FormattedSize}\n\n" +
-                    "Accept this transfer?",
-                    "File Transfer Request",
+                    $"收到文件传输请求\n\n" +
+                    $"发送者: {e.SenderName}\n" +
+                    $"地址: {e.SenderAddress}\n" +
+                    $"文件: {e.FileName}\n" +
+                    $"大小: {e.FormattedSize}\n\n" +
+                    "极力推荐仅接收信任设备的文件。是否接收？",
+                    "文件传输请求",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Question);
 
                 if (result == MessageBoxResult.Yes)
                 {
-                    // Sanitize filename
-                    var safeName = SanitizeFileName(e.FileName);
-                    var downloadsPath = GetDownloadsPath();
-                    if (!Directory.Exists(downloadsPath))
-                    {
-                        Directory.CreateDirectory(downloadsPath);
-                    }
-                    var savePath = Path.Combine(downloadsPath, safeName);
+                    // Remember this peer for the rest of the session to avoid repeated prompts
+                    _acceptedPeers.Add(e.SenderAddress);
+                    _acceptedPeers.Add(e.SenderName);
                     
-                    if (_engine.AcceptTransfer(savePath))
-                    {
-                        AddLog($"Accepted, saving to: {savePath}");
-                        StatusMessage = "Receiving file...";
-                    }
-                    else
-                    {
-                        AddLog("Failed to accept transfer");
-                        StatusMessage = "Accept failed";
-                        _hasPendingTransfer = false;
-                    }
+                    AcceptIncomingTransfer(e);
                 }
                 else
                 {
                     _engine.RejectTransfer();
-                    AddLog("Transfer rejected");
-                    StatusMessage = "Transfer rejected";
+                    AddLog("已拒绝传输");
+                    StatusMessage = "已拒绝传输";
                     _hasPendingTransfer = false;
                 }
                 
                 OnPropertyChanged(nameof(IsTransferring));
             });
+        }
+
+        private void AcceptIncomingTransfer(PendingTransferEventArgs e)
+        {
+            // Sanitize filename
+            var safeName = SanitizeFileName(e.FileName);
+            var downloadsPath = GetDownloadsPath();
+            if (!Directory.Exists(downloadsPath))
+            {
+                Directory.CreateDirectory(downloadsPath);
+            }
+            var savePath = Path.Combine(downloadsPath, safeName);
+            
+            if (_engine.AcceptTransfer(savePath))
+            {
+                AddLog($"已接受，正在保存至: {savePath}");
+                StatusMessage = "正在接收文件...";
+                
+                OngoingTransfer = new ReceivedFileInfo
+                {
+                    FilePath = savePath,
+                    FileName = e.FileName,
+                    FileSize = e.FormattedSize,
+                    SenderName = e.SenderName,
+                    ReceivedTime = DateTime.Now,
+                    Status = TransferStatus.InProgress
+                };
+            }
+            else
+            {
+                AddLog("接受传输失败");
+                StatusMessage = "接收失败";
+                _hasPendingTransfer = false;
+            }
         }
 
         #endregion
@@ -1155,6 +1241,75 @@ namespace VoidWarp.Windows.ViewModels
         }
 
         #endregion
+
+        private void ClearAllHistory()
+        {
+            if (IsTransferring) return;
+            
+            var result = MessageBox.Show("确定要清空所有传输记录吗？\n(这不会删除实际文件)", "虚空传送", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (result == MessageBoxResult.Yes)
+            {
+                InvokeOnUI(() =>
+                {
+                    ReceivedFiles.Clear();
+                    SaveHistory();
+                });
+            }
+        }
+
+        private void RemoveHistoryItem(ReceivedFileInfo? file)
+        {
+            if (file == null) return;
+            InvokeOnUI(() =>
+            {
+                ReceivedFiles.Remove(file);
+                SaveHistory();
+            });
+        }
+
+        private void StartHistorySyncTimer()
+        {
+            _historySyncTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(5)
+            };
+            _historySyncTimer.Tick += (s, e) => SyncHistoryWithDisk();
+            _historySyncTimer.Start();
+        }
+
+        private void SyncHistoryWithDisk()
+        {
+            bool changed = false;
+            foreach (var item in ReceivedFiles.ToList())
+            {
+                if (item.Status == TransferStatus.Success && !item.FileExists)
+                {
+                    item.Status = TransferStatus.Deleted;
+                    changed = true;
+                }
+            }
+            if (changed)
+            {
+                // Force UI update for the whole collection to refresh badges
+                // (Alternatively, implement INPC on ReceivedFileInfo, but this is simpler for now)
+                OnPropertyChanged(nameof(ReceivedFiles));
+                SaveHistory();
+            }
+        }
+
+        private void OpenReceivedFile(ReceivedFileInfo? file)
+        {
+            if (file == null || file.Status == TransferStatus.Deleted || !File.Exists(file.FilePath)) return;
+
+            try
+            {
+                Process.Start(new ProcessStartInfo(file.FilePath) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                AddLog($"无法打开文件: {ex.Message}");
+            }
+        }
     }
 
     #region RelayCommand
