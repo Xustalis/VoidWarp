@@ -838,11 +838,17 @@ namespace VoidWarp.Windows.ViewModels
                     StatusMessage = "Transfer complete!";
                     AddLog("✓ Transfer completed successfully");
                     
-                    MessageBox.Show(
-                        "File transfer completed successfully!",
+                    var path = GetDownloadsPath();
+                    var result = MessageBox.Show(
+                        $"File transfer completed successfully!\nSaved to: {path}\n\nOpen folder now?",
                         "Success",
-                        MessageBoxButton.OK,
+                        MessageBoxButton.YesNo,
                         MessageBoxImage.Information);
+                        
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        OpenDownloadsFolder();
+                    }
                 }
                 else
                 {
@@ -883,7 +889,12 @@ namespace VoidWarp.Windows.ViewModels
                 {
                     // Sanitize filename
                     var safeName = SanitizeFileName(e.FileName);
-                    var savePath = Path.Combine(GetDownloadsPath(), safeName);
+                    var downloadsPath = GetDownloadsPath();
+                    if (!Directory.Exists(downloadsPath))
+                    {
+                        Directory.CreateDirectory(downloadsPath);
+                    }
+                    var savePath = Path.Combine(downloadsPath, safeName);
                     
                     if (_engine.AcceptTransfer(savePath))
                     {
