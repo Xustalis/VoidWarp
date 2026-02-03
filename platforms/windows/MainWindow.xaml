@@ -53,6 +53,7 @@
         <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}"/>
 
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <local:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
 
         <!-- App Icon Resource -->
         <BitmapImage x:Key="AppIcon" UriSource="Assets/app.ico"/>
@@ -314,13 +315,39 @@
                         </Border.InputBindings>
                         
                         <Grid>
-                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MouseLeftButtonDown="FileSelectArea_MouseLeftButtonDown" Background="Transparent" IsHitTestVisible="True">
+                            <!-- Empty state -->
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding HasPendingFiles, Converter={StaticResource InverseBoolToVis}}">
                                 <Border Width="64" Height="64" Background="{StaticResource PrimaryBrush}" CornerRadius="32" Margin="0,0,0,16" HorizontalAlignment="Center">
                                     <TextBlock Text="&#xE8F4;" FontFamily="Segoe MDL2 Assets" FontSize="28" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
-                                <TextBlock Text="拖拽文件到此处 或 点击选择" Foreground="{StaticResource TextPrimaryBrush}" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                                <TextBlock Text="{Binding SelectedFileInfo}" Foreground="{StaticResource PrimaryBrush}" FontSize="14" HorizontalAlignment="Center" Margin="0,12,0,0" TextTrimming="CharacterEllipsis" MaxWidth="400"/>
+                                <TextBlock Text="点击选择文件" Foreground="{StaticResource TextPrimaryBrush}" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                <TextBlock Text="支持多文件选择" Foreground="{StaticResource TextSecondaryBrush}" FontSize="13" HorizontalAlignment="Center" Margin="0,8,0,0"/>
                             </StackPanel>
+                            
+                            <!-- Pending files list -->
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16" Visibility="{Binding HasPendingFiles, Converter={StaticResource BoolToVis}}">
+                                <ItemsControl ItemsSource="{Binding PendingFiles}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="&#xE7C3;" FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding FileName}" Foreground="White" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding FormattedSize}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,2,0,0"/>
+                                                    </StackPanel>
+                                                    <Button Grid.Column="2" Command="{Binding DataContext.RemoveFileCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource CaptionButtonStyle}" Tag="&#xE711;" Width="32" Height="32" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
                         </Grid>
                     </Border>
                     
@@ -334,10 +361,14 @@
                             <TextBlock Text="传输列表" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
                             <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Style="{StaticResource ModernButtonStyle}" Width="140" Command="{Binding SendFileCommand}" IsEnabled="{Binding CanSend}">
+                        <Button Grid.Column="1" Style="{StaticResource ModernButtonStyle}" MinWidth="140" Command="{Binding SendAllFilesCommand}" IsEnabled="{Binding CanSend}">
                              <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE725;" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBlock Text="发送文件" VerticalAlignment="Center"/>
+                                <TextBlock VerticalAlignment="Center">
+                                    <Run Text="发送"/>
+                                    <Run Text="{Binding PendingFiles.Count, Mode=OneWay}" Foreground="{StaticResource AccentBrush}" FontWeight="Bold"/>
+                                    <Run Text="个文件"/>
+                                </TextBlock>
                             </StackPanel>
                         </Button>
                     </Grid>

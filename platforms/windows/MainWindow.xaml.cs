@@ -70,4 +70,22 @@ namespace VoidWarp.Windows
             base.OnClosed(e);
         }
     }
+
+    /// <summary>
+    /// Inverse Boolean to Visibility converter (true = Collapsed, false = Visible).
+    /// </summary>
+    public class InverseBooleanToVisibilityConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value is bool boolValue)
+                return boolValue ? Visibility.Collapsed : Visibility.Visible;
+            return Visibility.Visible;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
 }
