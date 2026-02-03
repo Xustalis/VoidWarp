@@ -500,7 +500,7 @@
                                                                 <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
                                                                 <Style.Triggers>
                                                                     <DataTrigger Binding="{Binding Status}" Value="Success">
-                                                                        <Setter Property="Background" Value="#2222EE22"/>
+                                                                        <Setter Property="Background" Value="#2200E676"/>
                                                                     </DataTrigger>
                                                                     <DataTrigger Binding="{Binding Status}" Value="Failed">
                                                                         <Setter Property="Background" Value="#22EE2222"/>
@@ -519,7 +519,7 @@
                                                                     <Style.Triggers>
                                                                         <DataTrigger Binding="{Binding Status}" Value="Success">
                                                                             <Setter Property="Text" Value="成功"/>
-                                                                            <Setter Property="Foreground" Value="#FF22CC22"/>
+                                                                            <Setter Property="Foreground" Value="#00E676"/>
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding Status}" Value="Failed">
                                                                             <Setter Property="Text" Value="失败"/>
