@@ -1,6 +1,7 @@
 @echo off
 REM ========================================
 REM VoidWarp Windows Client Build Script
+REM Version: 1.0.0
 REM ========================================
 echo.
 echo ========================================

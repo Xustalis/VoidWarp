@@ -1,6 +1,7 @@
 # VoidWarp 🌌
 
 [![CI](https://github.com/XenithCode/VoidWarp/actions/workflows/ci.yml/badge.svg)](https://github.com/XenithCode/VoidWarp/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/XenithCode/VoidWarp?label=Release&color=success)](https://github.com/XenithCode/VoidWarp/releases/latest)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
 **VoidWarp** 是一个高性能、跨平台的局域网安全文件传输工具。旨在提供广泛的设备支持，保持极高的传输速度和安全性。
@@ -46,13 +47,13 @@ cd VoidWarp
 | Rust 核心 | `cd core && cargo build --release` |
 | Windows 客户端 | `cd platforms/windows && dotnet build -c Release`，运行 `bin/Release/net8.0-windows/VoidWarp.Windows.exe` |
 | Windows 安装包 | 根目录执行 `publish_windows.bat`，再运行 Inno Setup 编译 `platforms/windows/installer/VoidWarp.iss` 得到单文件安装包 |
-| Android 客户端 | 根目录执行 `build_android.bat`，或 `platforms/android` 下运行 `gradlew assembleDebug` |
+| Android 客户端 | 根目录执行 `build_android.bat`，或 `platforms/android` 下运行 `gradlew assembleRelease` |
 
 ---
 
 ## 📜 许可证 (License)
 
-Copyright © 2024 Xustalis.
+Copyright © 2024-2026 Xustalis.
 
 本项目采用 **GNU General Public License v3.0 (GPLv3)** 许可证。
 
