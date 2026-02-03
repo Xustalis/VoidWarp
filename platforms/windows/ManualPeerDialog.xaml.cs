@@ -1,5 +1,6 @@
 using System.Net;
 using System.Windows;
+using System.Windows.Controls;
 
 namespace VoidWarp.Windows
 {
@@ -11,6 +12,17 @@ namespace VoidWarp.Windows
         public ManualPeerDialog()
         {
             InitializeComponent();
+            IpBox.Focus();
+        }
+
+        private void IpBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            string input = IpBox.Text.Trim();
+            bool isValidIp = IPAddress.TryParse(input, out _);
+            if (AddButton != null)
+            {
+                AddButton.IsEnabled = isValidIp;
+            }
         }
 
         private void Ok_Click(object sender, RoutedEventArgs e)
