@@ -20,8 +20,8 @@
         <SolidColorBrush x:Key="TextTertiaryBrush" Color="#888888"/>
         
         <Style x:Key="InputStyle" TargetType="TextBox">
-            <Setter Property="Height" Value="48"/>
-            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="Height" Value="50"/>
+            <Setter Property="Padding" Value="12,0"/>
             <Setter Property="Background" Value="{StaticResource SurfaceLightBrush}"/>
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>

@@ -494,7 +494,7 @@
                                                 
                                                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                                                     <!-- Status Label (Success/Failed/Deleted) -->
-                                                    <Border Padding="10,4" CornerRadius="4" Margin="0,0,15,0" UseLayoutRounding="True">
+                                                    <Border Padding="12,5" CornerRadius="12" Margin="0,0,15,0" UseLayoutRounding="True" MinWidth="60">
                                                         <Border.Style>
                                                             <Style TargetType="Border">
                                                                 <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
@@ -511,7 +511,7 @@
                                                                 </Style.Triggers>
                                                             </Style>
                                                         </Border.Style>
-                                                        <TextBlock FontSize="10" FontWeight="Bold">
+                                                        <TextBlock FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" TextAlignment="Center">
                                                             <TextBlock.Style>
                                                                 <Style TargetType="TextBlock">
                                                                     <Setter Property="Text" Value="进行中"/>
