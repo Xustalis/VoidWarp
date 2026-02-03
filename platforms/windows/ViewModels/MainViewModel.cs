@@ -4,6 +4,8 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Collections.Generic;
+using System.Text.Json;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows;
@@ -55,6 +57,7 @@ namespace VoidWarp.Windows.ViewModels
         /// Thread-safe: all updates go through Dispatcher.
         /// </summary>
         public ObservableCollection<PendingFileInfo> PendingFiles { get; } = new();
+        public ObservableCollection<ReceivedFileInfo> ReceivedFiles { get; } = new();
 
         #endregion
 
@@ -314,6 +317,7 @@ namespace VoidWarp.Windows.ViewModels
         public ICommand TestConnectionCommand { get; }
         public ICommand OpenDownloadsCommand { get; }
         public ICommand AddManualPeerCommand { get; }
+        public ICommand DeleteReceivedFileCommand { get; }
         public ICommand CancelTransferCommand { get; }
         public ICommand ConfigureFirewallCommand { get; }
 
@@ -351,6 +355,7 @@ namespace VoidWarp.Windows.ViewModels
             TestConnectionCommand = new RelayCommand(peer => TestConnection(peer as PeerItem));
             OpenDownloadsCommand = new RelayCommand(_ => OpenDownloadsFolder());
             AddManualPeerCommand = new RelayCommand(_ => ShowAddPeerDialog());
+            DeleteReceivedFileCommand = new RelayCommand(file => DeleteReceivedFile(file as ReceivedFileInfo));
             CancelTransferCommand = new RelayCommand(_ => CancelTransfer());
             ConfigureFirewallCommand = new RelayCommand(_ => Core.FirewallHelper.RunFirewallSetupScript());
 
@@ -370,6 +375,7 @@ namespace VoidWarp.Windows.ViewModels
                 AddLog("Native library loaded successfully");
                 // Auto-start receiver and discovery
                 _ = InitializeAsync();
+                _ = LoadHistoryAsync();
             }
         }
 
@@ -849,6 +855,21 @@ namespace VoidWarp.Windows.ViewModels
                     {
                         OpenDownloadsFolder();
                     }
+
+                    // Add to history
+                    if (_pendingTransferInfo != null)
+                    {
+                        var historyItem = new ReceivedFileInfo
+                        {
+                            FilePath = Path.Combine(GetDownloadsPath(), SanitizeFileName(_pendingTransferInfo.FileName)),
+                            FileName = _pendingTransferInfo.FileName,
+                            FileSize = _pendingTransferInfo.FormattedSize,
+                            SenderName = _pendingTransferInfo.SenderName,
+                            ReceivedTime = DateTime.Now
+                        };
+                        ReceivedFiles.Insert(0, historyItem); // Add to top
+                        SaveHistory();
+                    }
                 }
                 else
                 {
@@ -922,6 +943,83 @@ namespace VoidWarp.Windows.ViewModels
 
         #endregion
 
+
+        private async Task LoadHistoryAsync()
+        {
+            await Task.Run(() =>
+            {
+                try
+                {
+                    var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VoidWarp", "history.json");
+                    if (File.Exists(path))
+                    {
+                        var json = File.ReadAllText(path);
+                        var history = JsonSerializer.Deserialize<List<ReceivedFileInfo>>(json);
+                        if (history != null)
+                        {
+                            InvokeOnUI(() =>
+                            {
+                                foreach (var item in history)
+                                {
+                                    // item.FileExists is computed, no need to set
+                                    ReceivedFiles.Add(item);
+                                }
+                            });
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddLog($"Failed to load history: {ex.Message}");
+                }
+            });
+        }
+
+        private void SaveHistory()
+        {
+            try
+            {
+                var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VoidWarp");
+                if (!Directory.Exists(path)) Directory.CreateDirectory(path);
+                
+                var filePath = Path.Combine(path, "history.json");
+                var json = JsonSerializer.Serialize(ReceivedFiles.ToList());
+                File.WriteAllText(filePath, json);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"Failed to save history: {ex.Message}");
+            }
+        }
+
+        private void DeleteReceivedFile(ReceivedFileInfo? file)
+        {
+            if (file == null) return;
+
+            var dialog = new DeleteConfirmationDialog();
+            dialog.Owner = Application.Current.MainWindow;
+            
+            if (dialog.ShowDialog() == true)
+            {
+                // Remove from list
+                ReceivedFiles.Remove(file);
+                SaveHistory();
+
+                // Delete physical file if requested
+                if (dialog.ShouldDeleteFile && File.Exists(file.FilePath))
+                {
+                    try
+                    {
+                        File.Delete(file.FilePath);
+                        AddLog($"Deleted file: {file.FileName}");
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Failed to delete file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+            }
+        }
         #region Helpers
 
         /// <summary>

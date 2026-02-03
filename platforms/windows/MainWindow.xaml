@@ -373,7 +373,7 @@
                         </Button>
                     </Grid>
                     
-                    <!-- Logs & Progress -->
+                    <!-- Logs & History -->
                     <Border Grid.Row="2" Background="{StaticResource SurfaceLightBrush}" CornerRadius="12" Padding="0" Height="200">
                         <Grid>
                             <Grid.RowDefinitions>
@@ -384,16 +384,102 @@
                             <!-- Progress Bar attached to top -->
                             <ProgressBar Grid.Row="0" Height="4" Value="{Binding ProgressValue}" Background="Transparent" Foreground="{StaticResource PrimaryBrush}" BorderThickness="0" Margin="0"/>
                             
-                            <!-- Simple Log View -->
-                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="16">
-                                <ItemsControl ItemsSource="{Binding Logs}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding}" Foreground="{StaticResource TextSecondaryBrush}" FontFamily="Consolas" FontSize="12" Margin="0,2" TextWrapping="Wrap"/>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </ScrollViewer>
+                            <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0" Margin="8,0">
+                                <TabControl.Resources>
+                                    <Style TargetType="TabItem">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="TabItem">
+                                                    <Grid>
+                                                        <Border x:Name="Border" Background="Transparent" Margin="0,0,0,-1" Padding="12,8">
+                                                            <ContentPresenter x:Name="ContentSite" VerticalAlignment="Center" HorizontalAlignment="Center" ContentSource="Header" Margin="0,0,0,1"/>
+                                                        </Border>
+                                                    </Grid>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsSelected" Value="True">
+                                                            <Setter TargetName="Border" Property="Background" Value="Transparent"/>
+                                                            <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}"/>
+                                                            <Setter Property="FontWeight" Value="Bold"/>
+                                                        </Trigger>
+                                                        <Trigger Property="IsSelected" Value="False">
+                                                            <Setter TargetName="Border" Property="Background" Value="Transparent"/>
+                                                            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </TabControl.Resources>
+                                
+                                <!-- Logs Tab -->
+                                <TabItem Header="运行日志">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8">
+                                        <ItemsControl ItemsSource="{Binding Logs}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding}" Foreground="{StaticResource TextSecondaryBrush}" FontFamily="Consolas" FontSize="12" Margin="0,2" TextWrapping="Wrap"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </TabItem>
+                                
+                                <!-- History Tab -->
+                                <TabItem Header="接收记录">
+                                    <ListBox ItemsSource="{Binding ReceivedFiles}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                        <ListBox.ItemContainerStyle>
+                                            <Style TargetType="ListBoxItem">
+                                                <Setter Property="Padding" Value="0"/>
+                                                <Setter Property="Margin" Value="0,4"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="ListBoxItem">
+                                                            <Border Background="{StaticResource SurfaceBrush}" CornerRadius="6" Padding="8,6">
+                                                                <ContentPresenter/>
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </ListBox.ItemContainerStyle>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    
+                                                    <!-- Icon -->
+                                                    <TextBlock Grid.Column="0" Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                    
+                                                    <!-- Details -->
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding FileName}" Foreground="White" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                                                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                            <TextBlock Text="{Binding FileSize}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,10,0"/>
+                                                            <TextBlock Text="{Binding SenderName}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,10,0"/>
+                                                            <TextBlock Text="{Binding ReceivedTime, StringFormat='HH:mm'}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                    
+                                                    <!-- Delete Button -->
+                                                    <Button Grid.Column="2" 
+                                                            Style="{StaticResource CaptionButtonStyle}" 
+                                                            Tag="&#xE74D;" 
+                                                            Width="28" Height="28" 
+                                                            Command="{Binding DataContext.DeleteReceivedFileCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                                            CommandParameter="{Binding}"
+                                                            Foreground="#E53E3E"
+                                                            VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </TabItem>
+                            </TabControl>
                         </Grid>
                     </Border>
                     
