@@ -8,10 +8,15 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
+import com.voidwarp.android.core.HistoryManager
+import com.voidwarp.android.core.HistoryItem
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import android.media.MediaScannerConnection
+import android.os.Environment
+import java.io.File
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -42,6 +47,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +58,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CompletableDeferred
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.ui.unit.sp
 import com.voidwarp.android.core.*
 import com.voidwarp.android.ui.theme.VoidWarpTheme
@@ -107,6 +117,8 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = AppColors.Background
                 ) {
+                    val context = LocalContext.current
+                    val historyManager = remember { HistoryManager(context) }
                     var currentScreen by remember { mutableStateOf("main") }
                     
                     when (currentScreen) {
@@ -114,9 +126,11 @@ class MainActivity : ComponentActivity() {
                             engine = engine!!,
                             transferManager = transferManager!!,
                             receiveManager = receiveManager!!,
+                            historyManager = historyManager,
                             onNavigateToReceived = { currentScreen = "received" }
                         )
                         "received" -> ReceivedFilesScreen(
+                            historyManager = historyManager,
                             onBack = { currentScreen = "main" }
                         )
                     }
@@ -134,20 +148,26 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+data class PendingFile(
+    val uri: Uri,
+    val name: String,
+    val size: Long
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     engine: VoidWarpEngine,
     transferManager: TransferManager,
     receiveManager: ReceiveManager,
+    historyManager: HistoryManager,
     onNavigateToReceived: () -> Unit
 ) {
     val context = LocalContext.current
     val isDiscovering by engine.isDiscovering.collectAsState()
     val peers by engine.peers.collectAsState()
     var selectedPeer by remember { mutableStateOf<DiscoveredPeer?>(null) }
-    var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
-    var selectedFileName by remember { mutableStateOf<String?>(null) }
+    var pendingFiles by remember { mutableStateOf<List<PendingFile>>(emptyList()) }
     val scope = rememberCoroutineScope()
     
     // Manual peer addition dialog state
@@ -172,28 +192,32 @@ fun MainScreen(
     
     // File picker launcher
     val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        uri?.let {
-            selectedFileUri = it
-            val cursor = context.contentResolver.query(it, null, null, null, null)
-            cursor?.use { c ->
-                if (c.moveToFirst()) {
-                    val nameIndex = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                    if (nameIndex >= 0) {
-                        selectedFileName = c.getString(nameIndex)
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            val newList = pendingFiles.toMutableList()
+            uris.forEach { uri ->
+                var name = "未知文件"
+                var size = 0L
+                context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (nameIndex >= 0) name = cursor.getString(nameIndex)
+                        
+                        val sizeIndex = cursor.getColumnIndex(android.provider.OpenableColumns.SIZE)
+                        if (sizeIndex >= 0) size = cursor.getLong(sizeIndex)
                     }
                 }
+                newList.add(PendingFile(uri, name, size))
+                
+                try {
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                } catch (_: SecurityException) {}
             }
-            if (selectedFileName == null) {
-                selectedFileName = it.lastPathSegment ?: "未知文件"
-            }
-            try {
-                context.contentResolver.takePersistableUriPermission(
-                    it,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-            } catch (_: SecurityException) {}
+            pendingFiles = newList
         }
     }
     
@@ -443,28 +467,81 @@ fun MainScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    // File Selector
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { filePickerLauncher.launch(arrayOf("*/*")) }
-                            .background(AppColors.Background, RoundedCornerShape(12.dp))
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = if (selectedFileName != null) Icons.Default.Description else Icons.Default.Add,
-                            contentDescription = null,
-                            tint = if (selectedFileName != null) AppColors.Primary else Color.Gray
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = selectedFileName ?: "选择要发送的文件",
-                            color = if (selectedFileName != null) Color.White else Color.Gray,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
+                    // File Selector / Queue
+                    if (pendingFiles.isEmpty()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { filePickerLauncher.launch(arrayOf("*/*")) }
+                                .background(AppColors.Background, RoundedCornerShape(12.dp))
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                tint = Color.Gray
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "选择要发送的文件",
+                                color = Color.Gray,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(AppColors.Background, RoundedCornerShape(12.dp))
+                                .padding(8.dp)
+                        ) {
+                            Text(
+                                text = "待发送队列 (${pendingFiles.size})",
+                                fontSize = 12.sp,
+                                color = AppColors.Primary,
+                                modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)
+                            )
+                            
+                            LazyColumn(
+                                modifier = Modifier.heightIn(max = 200.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                items(pendingFiles) { file ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(AppColors.Surface, RoundedCornerShape(8.dp))
+                                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Description, null, tint = AppColors.Primary, modifier = Modifier.size(20.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Text(file.name, color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            Text(formatFileSize(file.size), color = Color.Gray, fontSize = 10.sp)
+                                        }
+                                        IconButton(
+                                            onClick = { pendingFiles = pendingFiles.filter { it != file } },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Icon(Icons.Default.Close, null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                                        }
+                                    }
+                                }
+                                
+                                item {
+                                    TextButton(
+                                        onClick = { filePickerLauncher.launch(arrayOf("*/*")) },
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("继续添加", fontSize = 12.sp)
+                                    }
+                                }
+                            }
+                        }
                     }
                     
                     Spacer(modifier = Modifier.height(16.dp))
@@ -501,11 +578,36 @@ fun MainScreen(
                         // Send Action
                         Button(
                             onClick = {
-                                if (selectedPeer != null && selectedFileUri != null) {
+                                if (selectedPeer != null && pendingFiles.isNotEmpty()) {
                                     scope.launch {
-                                        transferManager.sendFile(selectedFileUri!!, selectedPeer!!, onComplete = { s, e ->
-                                            scope.launch { Toast.makeText(context, if(s) "发送完成" else "发送失败: $e", Toast.LENGTH_SHORT).show() }
-                                        })
+                                        val total = pendingFiles.size
+                                        var successCount = 0
+                                        var errorMsg: String? = null
+                                        
+                                        val filesToSend = pendingFiles.toList()
+                                        // Clear queue immediately or after? Better after to show progress if we had per-file progress in queue
+                                        // But for now let's just send them one by one.
+                                        
+                                        filesToSend.forEachIndexed { index, file ->
+                                            Toast.makeText(context, "正在发送 (${index + 1}/$total): ${file.name}", Toast.LENGTH_SHORT).show()
+                                            
+                                            val complete = CompletableDeferred<Boolean>()
+                                            transferManager.sendFile(file.uri, selectedPeer!!, onComplete = { s, e ->
+                                                if (s) successCount++ else errorMsg = e
+                                                complete.complete(s)
+                                            })
+                                            complete.await()
+                                        }
+                                        
+                                        if (successCount == total) {
+                                            Toast.makeText(context, "所有文件发送完成 ($total 个)", Toast.LENGTH_LONG).show()
+                                            pendingFiles = emptyList() // Clear only on full success? Or always?
+                                        } else {
+                                            Toast.makeText(context, "部分发送失败: $successCount/$total 成功. 错误: $errorMsg", Toast.LENGTH_LONG).show()
+                                            // Keep failed ones in queue? Implementation simple: clear only successful ones or leave as is.
+                                            // Let's clear the successful ones.
+                                            pendingFiles = pendingFiles.filter { f -> !filesToSend.take(successCount).contains(f) }
+                                        }
                                     }
                                 } else {
                                     Toast.makeText(context, "请先选择文件和设备", Toast.LENGTH_SHORT).show()
@@ -515,13 +617,13 @@ fun MainScreen(
                                 containerColor = AppColors.Primary,
                                 disabledContainerColor = AppColors.Surface
                             ),
-                            enabled = selectedPeer != null && selectedFileUri != null,
+                            enabled = selectedPeer != null && pendingFiles.isNotEmpty(),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(2f).height(50.dp)
                         ) {
                             Icon(Icons.AutoMirrored.Filled.Send, null, Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("开始传送")
+                            Text(if (pendingFiles.size > 1) "发送 ${pendingFiles.size} 个文件" else "开始传送")
                         }
                     }
                 }
@@ -572,24 +674,43 @@ fun MainScreen(
                 Button(
                     onClick = {
                         scope.launch {
-                            // Define save path: App-Specific Downloads directory
-                            // This works on all Android versions without extra permissions
-                            val downloadDir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS)
-                            // Fallback to app root if null (rare)
-                            val saveDir = if (downloadDir != null) downloadDir else context.filesDir
-                            
-                            if (!saveDir.exists()) {
-                                saveDir.mkdirs()
+                            // Try to use public Downloads/VoidWarp directory
+                            val publicDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "VoidWarp")
+                            if (!publicDir.exists()) {
+                                publicDir.mkdirs()
                             }
-                            // Sanitize filename lightly
+                            
+                            // Fallback to app-specific if public dir creation fails (though mkdirs might return false if exists)
+                            val saveDir = if (publicDir.exists()) publicDir else context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)!!
+                            
+                            // Sanitize filename
                             val safeName = transfer.fileName.replace("[^a-zA-Z0-9._-]".toRegex(), "_")
-                            val savePath = java.io.File(saveDir, safeName).absolutePath
+                            val saveFile = File(saveDir, safeName)
+                            val savePath = saveFile.absolutePath
                             
                             val success = receiveManager.acceptTransfer(savePath)
                             if (success) {
-                                Toast.makeText(context, "接收成功: $savePath", Toast.LENGTH_LONG).show()
+                                // Scan file to make it visible in Gallery/File Manager immediately
+                                MediaScannerConnection.scanFile(
+                                    context,
+                                    arrayOf(savePath),
+                                    null
+                                ) { _, uri ->
+                                    android.util.Log.i("VoidWarp", "Scanned $savePath: -> $uri")
+                                }
+                                
+                                // Add to history
+                                historyManager.add(HistoryItem(
+                                    fileName = transfer.fileName,
+                                    filePath = savePath,
+                                    fileSize = transfer.fileSize,
+                                    senderName = transfer.senderName,
+                                    receivedTime = System.currentTimeMillis()
+                                ))
+                                
+                                Toast.makeText(context, "已保存到: $savePath", Toast.LENGTH_LONG).show()
                             } else {
-                                Toast.makeText(context, "接收失败", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, "接收失败: 无法写入文件", Toast.LENGTH_LONG).show()
                             }
                         }
                     },
@@ -612,6 +733,13 @@ fun MainScreen(
     
     // Manual Peer Addition Dialog
     if (showAddPeerDialog) {
+        var showAdvanced by remember { mutableStateOf(false) }
+        
+        // IP Validation
+        val isIpValid = remember(manualIp) {
+            manualIp.isNotBlank() && android.util.Patterns.IP_ADDRESS.matcher(manualIp).matches()
+        }
+
         AlertDialog(
             onDismissRequest = { showAddPeerDialog = false },
             containerColor = AppColors.Surface,
@@ -623,9 +751,10 @@ fun MainScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "输入Windows设备的IP地址和端口",
+                        text = "当自动扫描未找到设备时，输入该设备的 IP 地址来手动连接。",
                         color = Color.Gray,
-                        fontSize = 12.sp
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
                     )
                     
                     OutlinedTextField(
@@ -633,31 +762,64 @@ fun MainScreen(
                         onValueChange = { manualIp = it },
                         label = { Text("IP 地址", color = Color.Gray) },
                         singleLine = true,
+                        isError = manualIp.isNotBlank() && !isIpValid,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFF6C63FF),
-                            unfocusedBorderColor = Color.Gray
+                            focusedBorderColor = AppColors.Primary,
+                            unfocusedBorderColor = Color.Gray,
+                            errorBorderColor = AppColors.Error,
+                            cursorColor = AppColors.Primary
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
                     
-                    OutlinedTextField(
-                        value = manualPort,
-                        onValueChange = { manualPort = it.filter { c -> c.isDigit() } },
-                        label = { Text("端口", color = Color.Gray) },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFF6C63FF),
-                            unfocusedBorderColor = Color.Gray
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    // Advanced Settings Toggle
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable { showAdvanced = !showAdvanced }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "高级设置",
+                            color = AppColors.Primary,
+                            fontSize = 14.sp
+                        )
+                        Icon(
+                            imageVector = if (showAdvanced) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = AppColors.Primary,
+                            modifier = Modifier.padding(start = 4.dp).size(20.dp)
+                        )
+                    }
+
+                    if (showAdvanced) {
+                        OutlinedTextField(
+                            value = manualPort,
+                            onValueChange = { manualPort = it.filter { c -> c.isDigit() } },
+                            label = { Text("端口", color = Color.Gray) },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = AppColors.Primary,
+                                unfocusedBorderColor = Color.Gray,
+                                cursorColor = AppColors.Primary
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            text = "提示: 不确定请使用默认端口 42424",
+                            color = Color.Gray,
+                            fontSize = 10.sp
+                        )
+                    }
                     
                     Text(
-                        text = "提示: USB连接时使用 127.0.0.1:42424\n(需先在PC上运行 adb reverse tcp:42424 tcp:42424)",
+                        text = "提示: USB连接时使用 127.0.0.1 (需先运行 adb reverse tcp:42424 tcp:42424)",
                         color = Color(0xFF888888),
                         fontSize = 10.sp
                     )
@@ -667,7 +829,7 @@ fun MainScreen(
                 Button(
                     onClick = {
                         val portNum = manualPort.toIntOrNull() ?: 42424
-                        if (manualIp.isNotBlank()) {
+                        if (isIpValid) {
                             engine.addManualPeer(
                                 id = "manual-${manualIp.replace(".", "-")}",
                                 name = "手动添加 ($manualIp)",
@@ -677,11 +839,13 @@ fun MainScreen(
                             engine.refreshPeers()
                             Toast.makeText(context, "已添加设备: $manualIp:$portNum", Toast.LENGTH_SHORT).show()
                             showAddPeerDialog = false
-                        } else {
-                            Toast.makeText(context, "请输入有效的IP地址", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6C63FF))
+                    enabled = isIpValid,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppColors.Primary,
+                        disabledContainerColor = AppColors.SurfaceLight
+                    )
                 ) {
                     Text("添加")
                 }
@@ -773,4 +937,12 @@ fun getAllIpAddresses(): List<String> {
         }
     } catch (_: Exception) {}
     return ips
+}
+fun formatFileSize(size: Long): String {
+    return when {
+        size >= 1024 * 1024 * 1024 -> "%.2f GB".format(size / 1024.0 / 1024.0 / 1024.0)
+        size >= 1024 * 1024 -> "%.1f MB".format(size / 1024.0 / 1024.0)
+        size >= 1024 -> "%.1f KB".format(size / 1024.0)
+        else -> "$size B"
+    }
 }

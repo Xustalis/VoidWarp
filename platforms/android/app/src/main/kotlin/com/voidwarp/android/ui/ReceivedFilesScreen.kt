@@ -29,41 +29,72 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 import androidx.activity.compose.BackHandler
+import com.voidwarp.android.core.HistoryManager
+import com.voidwarp.android.core.HistoryItem
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.Checkbox
+import androidx.compose.ui.text.style.TextDecoration
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReceivedFilesScreen(
+    historyManager: HistoryManager,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    var files by remember { mutableStateOf<List<File>>(emptyList()) }
+    val items by historyManager.items.collectAsState()
+    
+    // Deletion State
+    var itemToDelete by remember { mutableStateOf<HistoryItem?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var deleteFileChecked by remember { mutableStateOf(false) }
     
     // Handle system back button
     BackHandler {
         onBack()
     }
     
-    // Function to refresh file list
-    fun refreshFiles() {
-        val voidWarpDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir
-        
-        files = try {
-            if (voidWarpDir.exists() && voidWarpDir.isDirectory) {
-                voidWarpDir.listFiles()
-                    ?.filter { it.isFile }
-                    ?.sortedByDescending { it.lastModified() }
-                    ?: emptyList()
-            } else {
-                emptyList()
+    // Delete Confirmation Dialog
+    if (showDeleteDialog && itemToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            containerColor = com.voidwarp.android.AppColors.Surface,
+            title = { Text("删除记录", color = Color.White) },
+            text = {
+                Column {
+                    Text("确定要删除此传输记录吗？", color = Color.Gray)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { deleteFileChecked = !deleteFileChecked }
+                    ) {
+                        Checkbox(
+                            checked = deleteFileChecked,
+                            onCheckedChange = { deleteFileChecked = it },
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = com.voidwarp.android.AppColors.Primary,
+                                uncheckedColor = Color.Gray,
+                                checkmarkColor = Color.White
+                            )
+                        )
+                        Text("同时删除本地文件", color = Color.White, modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        historyManager.delete(itemToDelete!!, deleteFileChecked)
+                        showDeleteDialog = false
+                        itemToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = com.voidwarp.android.AppColors.Error)
+                ) { Text("删除") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("取消", color = Color.Gray) }
             }
-        } catch (_: Exception) {
-            emptyList()
-        }
-    }
-    
-    // Initial load
-    LaunchedEffect(Unit) {
-        refreshFiles()
+        )
     }
     
     Column(
@@ -81,27 +112,24 @@ fun ReceivedFilesScreen(
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回", tint = Color.White)
             }
             Text(
-                text = "已接收文件",
+                text = "接收记录",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
                 modifier = Modifier.weight(1f)
             )
-            IconButton(onClick = { refreshFiles() }) {
-                Icon(Icons.Default.Refresh, contentDescription = "刷新", tint = Color.White)
-            }
         }
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        // File List
-        if (files.isEmpty()) {
+        // List
+        if (items.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "暂无接收文件\n(保存在应用下载目录)",
+                    text = "暂无接收记录",
                     color = Color.Gray,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
@@ -110,8 +138,16 @@ fun ReceivedFilesScreen(
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(files) { file ->
-                    FileItem(file = file, context = context)
+                items(items) { item ->
+                    HistoryItemRow(
+                        item = item,
+                        context = context,
+                        onDelete = {
+                            itemToDelete = item
+                            deleteFileChecked = false // Reset default
+                            showDeleteDialog = true
+                        }
+                    )
                 }
             }
         }
@@ -119,21 +155,27 @@ fun ReceivedFilesScreen(
 }
 
 @Composable
-fun FileItem(file: File, context: android.content.Context) {
+fun HistoryItemRow(
+    item: HistoryItem,
+    context: android.content.Context,
+    onDelete: () -> Unit
+) {
     val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+    val fileExists = item.fileExists
     
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
+            .clickable(enabled = fileExists) {
                 try {
+                    val file = File(item.filePath)
                     val uri = FileProvider.getUriForFile(
                         context,
                         "${context.packageName}.provider",
                         file
                     )
                     val intent = Intent(Intent.ACTION_VIEW).apply {
-                        setDataAndType(uri, "*/*") // Let system determine type or use generic
+                        setDataAndType(uri, "*/*")
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
                     context.startActivity(intent)
@@ -148,31 +190,50 @@ fun FileItem(file: File, context: android.content.Context) {
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Icon
             Icon(
                 Icons.Default.Description,
                 contentDescription = null,
-                tint = com.voidwarp.android.AppColors.Primary,
+                tint = if (fileExists) com.voidwarp.android.AppColors.Primary else Color.Gray,
                 modifier = Modifier.size(32.dp)
             )
+            
             Spacer(modifier = Modifier.width(12.dp))
+            
+            // Info
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = file.name,
-                    color = Color.White,
+                    text = item.fileName,
+                    color = if (fileExists) Color.White else Color.Gray,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    style = if (!fileExists) androidx.compose.ui.text.TextStyle(textDecoration = TextDecoration.LineThrough) else androidx.compose.ui.text.TextStyle()
                 )
                 Text(
-                    text = "${formatFileSize(file.length())} • ${dateFormat.format(Date(file.lastModified()))}",
+                    text = "${item.formattedSize} • 来自: ${item.senderName}",
                     color = Color.Gray,
                     fontSize = 12.sp
+                )
+                Text(
+                    text = dateFormat.format(Date(item.receivedTime)),
+                    color = Color.DarkGray,
+                    fontSize = 10.sp
+                )
+            }
+            
+            // Delete Button
+            IconButton(onClick = onDelete) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "删除",
+                    tint = com.voidwarp.android.AppColors.Error,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
     }
 }
-
 fun formatFileSize(size: Long): String {
     return when {
         size >= 1024 * 1024 * 1024 -> "%.2f GB".format(size / 1024.0 / 1024.0 / 1024.0)
