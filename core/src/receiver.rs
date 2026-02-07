@@ -9,13 +9,13 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use crate::checksum::{calculate_chunk_checksum, calculate_file_checksum};
+use crate::checksum::{calculate_chunk_checksum, calculate_chunk_checksum_raw, calculate_file_checksum};
 use std::time::Duration;
 
 // Timeouts
 // Handshake timeout - should be long enough to receive the offer from sender
-// The sender has 60s to send the offer after connecting
-const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(60);
+// The sender has 300s (5 mins) to send the offer after connecting - increased to allow manual accept time
+const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(300);
 
 // Data timeout - for receiving chunks during active transfer
 const DATA_TIMEOUT: Duration = Duration::from_secs(30);
@@ -145,6 +145,10 @@ impl FileReceiverServer {
                     Ok((mut stream, addr)) => {
                         tracing::info!("✓ Incoming connection from {}", addr);
 
+                        if let Err(e) = stream.set_nodelay(true) {
+                            tracing::warn!("Failed to set TCP_NODELAY: {}", e);
+                        }
+                        
                         // Set handshake timeouts (long enough to receive the offer)
                         if let Err(e) = stream.set_read_timeout(Some(HANDSHAKE_TIMEOUT)) {
                             tracing::warn!("Failed to set read timeout: {}", e);
@@ -306,6 +310,18 @@ impl FileReceiverServer {
 
                 tracing::info!("Starting to receive file chunks...");
                 let mut last_log_chunk = 0u64;
+                
+                // PERFORMANCE: Reuse buffer for chunks to avoid allocations
+                use crate::protocol::MAX_CHUNK_SIZE;
+                if info.chunk_size > MAX_CHUNK_SIZE {
+                    tracing::error!("Chunk size {} exceeds safety limit {}", info.chunk_size, MAX_CHUNK_SIZE);
+                    return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Chunk size too large"));
+                }
+                let mut chunk_buffer = vec![0u8; info.chunk_size as usize];
+                
+                // PERFORMANCE: Calculate file checksum incrementally to avoid second read pass
+                let mut file_hasher = md5::Context::new();
+
                 loop {
                     // Check if transfer is complete
                     if received >= info.file_size {
@@ -330,20 +346,16 @@ impl FileReceiverServer {
                         last_log_chunk = chunk_index;
                     }
 
-                    // Read chunk data
-                    let mut data = vec![0u8; chunk_len];
-                    conn.read_exact(&mut data)?;
+                    // Read chunk data into reused buffer
+                    let mut data = &mut chunk_buffer[..chunk_len];
+                    conn.read_exact(data)?;
 
                     // Read checksum (16 bytes)
                     let mut chunk_checksum_buf = [0u8; 16];
                     conn.read_exact(&mut chunk_checksum_buf)?;
 
-                    // Verify checksum
-                    let calculated_hex = calculate_chunk_checksum(&data);
-                    let calculated_bytes: Vec<u8> = (0..std::cmp::min(32, calculated_hex.len()))
-                        .step_by(2)
-                        .filter_map(|i| u8::from_str_radix(&calculated_hex[i..i + 2], 16).ok())
-                        .collect();
+                    // Verify chunk checksum (Raw bytes, no hex string conversion)
+                    let calculated_bytes = calculate_chunk_checksum_raw(&data);
 
                     if calculated_bytes != chunk_checksum_buf {
                         tracing::warn!(
@@ -356,6 +368,9 @@ impl FileReceiverServer {
                         conn.flush()?; // Flush ACK immediately
                         continue;
                     }
+
+                    // PERFORMANCE: Incrementally hash file data
+                    file_hasher.consume(&data);
 
                     // Write to file
                     writer.write_all(&data)?;
@@ -370,16 +385,22 @@ impl FileReceiverServer {
                 }
 
                 // Final verification
-                tracing::info!("All chunks received, flushing to disk and verifying...");
+                tracing::info!("All chunks received, flushing to disk...");
                 writer.flush()?;
 
-                tracing::info!("Calculating final file checksum...");
+                tracing::info!("Verifying final file checksum...");
+                let final_digest = file_hasher.compute();
+                let final_checksum = format!("{:x}", final_digest);
+
+                // Use the incrementally calculated checksum instead of reading the file again
+                // Note: For folders, we still use manifest_checksum logic if applicable, 
+                // but for single files we save one full read pass.
                 let final_checksum = if info.transfer_type == TransferType::Folder {
                     writer
                         .manifest_checksum()
                         .ok_or(std::io::Error::other("No manifest checksum"))?
                 } else {
-                    calculate_file_checksum(save_path)?
+                    final_checksum
                 };
 
                 let success = final_checksum == info.file_checksum;
@@ -406,14 +427,20 @@ impl FileReceiverServer {
 
                 // Note: We don't auto-restart here because the user might want to see the "Completed" state.
                 // The UI should provide a way to "Reset" or "Listen Again".
-                // But for "reject", we definitely want to auto-restart.
-
                 Ok(())
             }
-            _ => Err(std::io::Error::new(
+            (None, _) => {
+                tracing::error!("accept_transfer: pending_transfer is None. State: {:?}", *self.state.lock().unwrap());
+                Err(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
-                "No pending transfer to accept",
-            )),
+                "No pending transfer info found (timeout or cleared?)",
+            ))},
+            (_, None) => {
+                tracing::error!("accept_transfer: pending_stream is None. Connection might have dropped.");
+                Err(std::io::Error::new(
+                std::io::ErrorKind::NotConnected,
+                "No pending connection stream found",
+            ))},
         }
     }
 

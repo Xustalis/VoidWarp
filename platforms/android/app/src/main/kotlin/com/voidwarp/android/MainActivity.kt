@@ -8,6 +8,9 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.voidwarp.android.core.HistoryManager
 import com.voidwarp.android.core.HistoryItem
 import androidx.activity.ComponentActivity
@@ -66,9 +69,7 @@ import com.voidwarp.android.core.*
 import com.voidwarp.android.ui.theme.VoidWarpTheme
 import com.voidwarp.android.ui.ReceivedFilesScreen
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+
 
 class MainActivity : ComponentActivity() {
     
@@ -636,6 +637,13 @@ fun MainScreen(
     // Incoming Transfer Dialog
     val pendingTransfer by receiveManager.pendingTransfer.collectAsState()
     
+    // Prevent double-click issues
+    var isProcessing by remember { mutableStateOf(false) }
+    // Reset processing state when dialog appears/disappears
+    LaunchedEffect(pendingTransfer) {
+        isProcessing = false
+    }
+    
     if (pendingTransfer != null) {
         val transfer = pendingTransfer!!
         AlertDialog(
@@ -675,56 +683,89 @@ fun MainScreen(
             },
             confirmButton = {
                 Button(
+                    enabled = !isProcessing,
                     onClick = {
+                        if (isProcessing) return@Button
+                        isProcessing = true
+                        
                         scope.launch {
-                            // Try to use public Downloads/VoidWarp directory
-                            val publicDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "VoidWarp")
-                            if (!publicDir.exists()) {
-                                publicDir.mkdirs()
-                            }
-                            
-                            // Fallback to app-specific if public dir creation fails (though mkdirs might return false if exists)
-                            val saveDir = if (publicDir.exists()) publicDir else context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)!!
-                            
-                            // Sanitize filename
-                            val safeName = transfer.fileName.replace("[^a-zA-Z0-9._-]".toRegex(), "_")
-                            val saveFile = File(saveDir, safeName)
-                            val savePath = saveFile.absolutePath
-                            
-                            val success = receiveManager.acceptTransfer(savePath)
-                            if (success) {
-                                // Scan file to make it visible in Gallery/File Manager immediately
-                                MediaScannerConnection.scanFile(
-                                    context,
-                                    arrayOf(savePath),
-                                    null
-                                ) { _, uri ->
-                                    android.util.Log.i("VoidWarp", "Scanned $savePath: -> $uri")
+                            try {
+                                // 1. RECEIVE TO SANDBOX (100% Guaranteed Success)
+                                // Use private app storage which doesn't require permissions
+                                val sandboxDir = context.getExternalFilesDir(null) ?: context.filesDir
+                                
+                                // Sanitize filename
+                                val fileName = transfer.fileName
+                                val safeName = fileName.replace("[^a-zA-Z0-9._\\- (\\[\\])]".toRegex(), "_")
+                                var sandboxFile = File(sandboxDir, safeName)
+                                
+                                // Handle duplicate filenames in sandbox
+                                var counter = 1
+                                while (sandboxFile.exists()) {
+                                    val nameWithoutExt = safeName.substringBeforeLast('.')
+                                    val ext = if (safeName.contains('.')) ".${safeName.substringAfterLast('.')}" else ""
+                                    sandboxFile = File(sandboxDir, "$nameWithoutExt ($counter)$ext")
+                                    counter++
                                 }
                                 
-                                // Add to history
-                                historyManager.add(HistoryItem(
-                                    fileName = transfer.fileName,
-                                    filePath = savePath,
-                                    fileSize = transfer.fileSize,
-                                    senderName = transfer.senderName,
-                                    receivedTime = System.currentTimeMillis()
-                                ))
+                                val sandboxPath = sandboxFile.absolutePath
+                                android.util.Log.i("VoidWarp", "Step 1: Receiving to Sandbox: $sandboxPath")
                                 
-                                Toast.makeText(context, "已保存到: $savePath", Toast.LENGTH_LONG).show()
-                            } else {
-                                Toast.makeText(context, "接收失败: 无法写入文件", Toast.LENGTH_LONG).show()
+                                val success = receiveManager.acceptTransfer(sandboxPath)
+                                if (success) {
+                                    // 2. MOVE TO PUBLIC STORAGE (Gallery/Downloads)
+                                    withContext(Dispatchers.IO) {
+                                        try {
+                                            copyToPublicStorage(context, sandboxFile, transfer.fileName)
+                                        } catch (e: Throwable) {
+                                            android.util.Log.e("VoidWarp", "Copy to public storage failed: $e")
+                                            withContext(Dispatchers.Main) {
+                                                Toast.makeText(context, "保存到相册失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                        
+                                        // 3. ADD TO HISTORY (Move to IO thread to prevent ANR/Crash)
+                                        try {
+                                            historyManager.add(
+                                                HistoryItem(
+                                                    fileName = transfer.fileName,
+                                                    filePath = sandboxPath,
+                                                    fileSize = transfer.fileSize,
+                                                    senderName = transfer.senderName,
+                                                    receivedTime = System.currentTimeMillis()
+                                                )
+                                            )
+                                        } catch (e: Throwable) {
+                                            android.util.Log.e("VoidWarp", "Failed to add to history: $e")
+                                        }
+                                    }
+                                } else {
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "接收失败: 传输错误", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            } catch (e: Throwable) {
+                                android.util.Log.e("VoidWarp", "CRITICAL ERROR in Receive: $e")
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "致命错误: ${e.message}", Toast.LENGTH_LONG).show()
+                                }
+                            } finally {
+                                withContext(Dispatchers.Main) {
+                                    isProcessing = false
+                                }
                             }
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                 ) {
-                    Text("接收")
+                    Text(if (isProcessing) "处理中..." else "接收")
                 }
             },
             dismissButton = {
                 TextButton(
+                    enabled = !isProcessing,
                     onClick = {
+                        if (isProcessing) return@TextButton
                         receiveManager.rejectTransfer()
                     }
                 ) {
@@ -947,5 +988,103 @@ fun formatFileSize(size: Long): String {
         size >= 1024 * 1024 -> "%.1f MB".format(size / 1024.0 / 1024.0)
         size >= 1024 -> "%.1f KB".format(size / 1024.0)
         else -> "$size B"
+    }
+}
+
+// Helper to copy file from Sandbox to Public Storage via MediaStore
+suspend fun copyToPublicStorage(context: Context, sandboxFile: File, originalName: String) {
+    if (!sandboxFile.exists()) return
+    
+    val extension = originalName.substringAfterLast('.', "").lowercase()
+    val mimeType = when (extension) {
+        "jpg", "jpeg" -> "image/jpeg"
+        "png" -> "image/png"
+        "gif" -> "image/gif"
+        "mp4" -> "video/mp4"
+        "mp3" -> "audio/mpeg"
+        "pdf" -> "application/pdf"
+        "zip" -> "application/zip"
+        "apk" -> "application/vnd.android.package-archive"
+        else -> "*/*"
+    }
+
+    var success = false
+    var typeMsg = "下载/VoidWarp"
+
+    try {
+        val resolver = context.contentResolver
+        val contentValues = android.content.ContentValues().apply {
+            put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, originalName)
+            put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mimeType)
+            if (android.os.Build.VERSION.SDK_INT >= 29) {
+                // Use strings for keys to avoid classloader issues on old APIs
+                put("relative_path", when (extension) {
+                    "jpg", "jpeg", "png", "gif", "bmp", "webp", "heic" -> "Pictures/VoidWarp"
+                    "mp4", "mkv", "avi", "mov", "wmv" -> "Movies/VoidWarp"
+                    "mp3", "wav", "ogg" -> "Music/VoidWarp"
+                    else -> "Download/VoidWarp"
+                })
+                put("is_pending", 1)
+            }
+        }
+
+        // Determine collection URI safely
+        val collection = when (extension) {
+            "jpg", "jpeg", "png", "gif", "bmp", "webp", "heic" -> {
+                typeMsg = "相册"
+                if (android.os.Build.VERSION.SDK_INT >= 29) android.provider.MediaStore.Images.Media.getContentUri("external_primary")
+                else android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            }
+            "mp4", "mkv", "avi", "mov", "wmv" -> {
+                typeMsg = "视频"
+                if (android.os.Build.VERSION.SDK_INT >= 29) android.provider.MediaStore.Video.Media.getContentUri("external_primary")
+                else android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+            }
+            "mp3", "wav", "ogg" -> {
+                typeMsg = "音乐"
+                if (android.os.Build.VERSION.SDK_INT >= 29) android.provider.MediaStore.Audio.Media.getContentUri("external_primary")
+                else android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+            }
+            else -> {
+                typeMsg = "下载/VoidWarp"
+                if (android.os.Build.VERSION.SDK_INT >= 29) {
+                    // Avoid direct reference to MediaStore.Downloads to prevent crash on API < 29
+                    android.net.Uri.parse("content://media/external/downloads")
+                } else {
+                    @Suppress("DEPRECATION")
+                    android.provider.MediaStore.Files.getContentUri("external")
+                }
+            }
+        }
+
+        val uri = resolver.insert(collection, contentValues)
+        if (uri != null) {
+            resolver.openOutputStream(uri)?.use { outputStream ->
+                java.io.FileInputStream(sandboxFile).use { inputStream ->
+                    inputStream.copyTo(outputStream, bufferSize = 128 * 1024)
+                }
+            }
+            
+            if (android.os.Build.VERSION.SDK_INT >= 29) {
+                contentValues.clear()
+                contentValues.put("is_pending", 0)
+                resolver.update(uri, contentValues, null, null)
+            }
+            success = true
+            android.util.Log.i("VoidWarp", "Step 2: Copied to Public Storage: $uri")
+        } else {
+            android.util.Log.e("VoidWarp", "Step 2 Failed: Insert returned null uri")
+        }
+    } catch (e: Throwable) {
+        // Catch Throwable to handle NoClassDefFoundError etc.
+        android.util.Log.e("VoidWarp", "Step 2 CRITICAL ERROR: $e")
+    }
+
+    withContext(Dispatchers.Main) {
+        if (success) {
+            Toast.makeText(context, "接收成功！已保存到$typeMsg", Toast.LENGTH_LONG).show()
+        } else {
+            Toast.makeText(context, "已保存到应用私有目录 (沙盒)", Toast.LENGTH_LONG).show()
+        }
     }
 }

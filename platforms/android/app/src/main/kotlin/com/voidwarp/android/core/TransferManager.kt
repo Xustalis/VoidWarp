@@ -70,7 +70,11 @@ class TransferManager(private val context: Context) {
 
             // Copy URI content to temp file for native access
             _statusMessage.value = "准备文件..."
+            val startTime = System.currentTimeMillis()
             tempFile = copyUriToTempFile(fileUri)
+            val copyTime = System.currentTimeMillis() - startTime
+            android.util.Log.i("TransferManager", "Time to copy Uri to Temp: ${copyTime}ms")
+            
             if (tempFile == null) {
                 _statusMessage.value = "无法读取文件"
                 onComplete(false, "无法读取文件")
@@ -80,6 +84,7 @@ class TransferManager(private val context: Context) {
             android.util.Log.d("TransferManager", "File prepared: ${tempFile.absolutePath}, size: ${tempFile.length()} bytes")
             
             _statusMessage.value = "计算校验和..."
+            val hashStartTime = System.currentTimeMillis()
             
             // Create TCP sender
             senderHandle = NativeLib.voidwarpTcpSenderCreate(tempFile.absolutePath)
@@ -89,18 +94,22 @@ class TransferManager(private val context: Context) {
                 return@withContext
             }
             
+            val hashTime = System.currentTimeMillis() - hashStartTime
+            android.util.Log.i("TransferManager", "Time to create sender (includes hashing): ${hashTime}ms")
+            
             val checksum = NativeLib.voidwarpTcpSenderGetChecksum(senderHandle)
             val fileSize = NativeLib.voidwarpTcpSenderGetFileSize(senderHandle)
-            android.util.Log.d("TransferManager", "File checksum: $checksum, size: $fileSize")
-
-            // Dynamic Chunk Size Optimization
+            
+            // Dynamic Chunk Size Optimization: 
+            // For files under 32MB, use ONE giant chunk to eliminate ALL round-trip delays (Streaming Mode).
+            // For larger files, use 1MB-4MB chunks to balance throughput and resume capability.
             val optimalChunkSize = when {
-                fileSize < 10 * 1024 * 1024 -> 64 * 1024      // < 10MB: 64KB (Lower latency)
-                fileSize > 500 * 1024 * 1024 -> 4 * 1024 * 1024 // > 500MB: 4MB (Higher throughput)
-                else -> 1024 * 1024                           // Default: 1MB
+                fileSize < 32 * 1024 * 1024 -> fileSize.toInt() // < 32MB: Single chunk (Max Speed)
+                fileSize > 1024 * 1024 * 1024 -> 4 * 1024 * 1024 // > 1GB: 4MB
+                else -> 2 * 1024 * 1024                          // Default: 2MB
             }
-            NativeLib.voidwarpTcpSenderSetChunkSize(senderHandle, optimalChunkSize)
-            android.util.Log.d("TransferManager", "Set optimized chunk size: $optimalChunkSize bytes")
+            NativeLib.voidwarpTcpSenderSetChunkSize(senderHandle, if (optimalChunkSize <= 0) 1024*1024 else optimalChunkSize)
+            android.util.Log.i("TransferManager", "Using ${if (fileSize < 32*1024*1024) "STREAMING" else "CHUNKED"} mode. Chunk Size: $optimalChunkSize")
             
             // Monitor progress
             transferJob = launch {
@@ -120,6 +129,8 @@ class TransferManager(private val context: Context) {
             var finalResult = -1
             var usedIp = ""
             
+            val transferStartTime = System.currentTimeMillis()
+            
             // Try each IP until success or fatal error
             val nonLocalIps = filterOutLocalIps(ips)
             val ipListToUse = if (nonLocalIps.isNotEmpty()) nonLocalIps else ips
@@ -129,7 +140,6 @@ class TransferManager(private val context: Context) {
                 
                 val targetIp = ip.trim()
                 _statusMessage.value = "正在连接 $targetIp..."
-                android.util.Log.i("TransferManager", "Attempting transfer to $targetIp:${peer.port}")
                 
                 // Retry loop for the specific IP (handling resume on broken pipe)
                 var retryCount = 0
@@ -138,11 +148,6 @@ class TransferManager(private val context: Context) {
                 while (retryCount < maxIpRetries) {
                     if (!isActive || !_isTransferring.value) break
                     
-                    if (retryCount > 0) {
-                        _statusMessage.value = "连接中断，正在重试 ($retryCount/$maxIpRetries)..."
-                        delay(1000)
-                    }
-
                     finalResult = NativeLib.voidwarpTcpSenderStart(
                         senderHandle,
                         targetIp,
@@ -152,39 +157,23 @@ class TransferManager(private val context: Context) {
                     
                     if (finalResult == 0) {
                         usedIp = targetIp
-                        android.util.Log.i("TransferManager", "Transfer success using IP: $targetIp")
-                        break // Break retry loop (success)
+                        break 
                     } else if (finalResult == 6) {
-                         // IO Error (Likely broken pipe / timeout during transfer)
-                         // Since sender supports resume, a simple retry effectively resumes!
                          retryCount++
-                         android.util.Log.w("TransferManager", "IO Error on $targetIp (Attempt $retryCount). Retrying to resume...")
                          continue
                     } else {
-                        // Other errors (Connection failed initially, Rejected, Checksum error) don't benefit from immediate retry on same IP
                         break 
                     }
                 }
 
-                if (finalResult == 0) break // Break IP loop (success)
-                
-                if (finalResult == 3) {
-                    // Connection failed (timeout/refused), try next IP
-                    android.util.Log.w("TransferManager", "Connection failed to $targetIp (Result 3). Trying next IP...")
-                    continue
-                } else if (finalResult == 6) {
-                    // If we exhausted retries on IO error, try next IP?
-                    // Actually if IO error happened, it means we DID connect but lost it.
-                    // Trying another IP of the SAME peer might be valid if they switched network?
-                    android.util.Log.e("TransferManager", "IO Error persisted on $targetIp. Trying next IP...")
-                    continue
-                } else {
-                    // Fatal error (Rejected=1, Checksum=2, Cancelled=5), stop trying ANY IP
-                    android.util.Log.e("TransferManager", "Fatal error on $targetIp: $finalResult. Aborting.")
-                    usedIp = targetIp
-                    break
-                }
+                if (finalResult == 0) break 
+                if (finalResult == 3) continue 
+                if (finalResult == 6) continue 
+                break
             }
+
+            val transferDuration = System.currentTimeMillis() - transferStartTime
+            android.util.Log.i("TransferManager", "ACTUAL TRANSFER TIME: ${transferDuration}ms")
 
             // If we ran out of IPs and result is still 3 (or -1), make sure we report failure
             if (finalResult == -1) {
@@ -286,7 +275,7 @@ class TransferManager(private val context: Context) {
             val inputStream = context.contentResolver.openInputStream(uri) ?: return null
             inputStream.use { input ->
                 FileOutputStream(tempFile).use { output ->
-                    input.copyTo(output, bufferSize = 1024 * 1024)
+                    input.copyTo(output, bufferSize = 1024 * 1024) // 1MB buffer for fast I/O
                 }
             }
             

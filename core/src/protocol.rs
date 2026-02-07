@@ -8,6 +8,12 @@ use std::io::{self, Read, Write};
 /// P2P Protocol Version (increment when changing handshake format)
 pub const PROTOCOL_VERSION: u8 = 2;
 
+/// Safety caps for protocol members to prevent OOM or overflow attacks
+pub const MAX_CHUNK_SIZE: u32 = 32 * 1024 * 1024; // 32MB cap
+pub const MAX_FILE_NAME_LEN: usize = 1024;
+pub const MAX_SENDER_NAME_LEN: usize = 255;
+pub const MAX_CHECKSUM_LEN: usize = 255;
+
 /// Transfer Type Enum
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransferType {
@@ -138,6 +144,11 @@ impl HandshakeRequest {
         let mut sender_len_buf = [0u8; 1];
         reader.read_exact(&mut sender_len_buf)?;
         let sender_len = sender_len_buf[0] as usize;
+        
+        if sender_len > MAX_SENDER_NAME_LEN {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "Sender name too long"));
+        }
+        
         let mut sender_buf = vec![0u8; sender_len];
         reader.read_exact(&mut sender_buf)?;
         let sender_name = String::from_utf8_lossy(&sender_buf).to_string();
@@ -146,6 +157,11 @@ impl HandshakeRequest {
         let mut fname_len_buf = [0u8; 2];
         reader.read_exact(&mut fname_len_buf)?;
         let fname_len = u16::from_be_bytes(fname_len_buf) as usize;
+        
+        if fname_len > MAX_FILE_NAME_LEN {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "File name too long"));
+        }
+        
         let mut fname_buf = vec![0u8; fname_len];
         reader.read_exact(&mut fname_buf)?;
         let file_name = String::from_utf8_lossy(&fname_buf).to_string();
@@ -158,11 +174,24 @@ impl HandshakeRequest {
         let mut chunk_buf = [0u8; 4];
         reader.read_exact(&mut chunk_buf)?;
         let chunk_size = u32::from_be_bytes(chunk_buf);
+        
+        if chunk_size > MAX_CHUNK_SIZE {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Chunk size too large: {} > {}", chunk_size, MAX_CHUNK_SIZE)));
+        }
+        
+        if chunk_size == 0 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "Chunk size cannot be zero"));
+        }
 
         // Checksum
         let mut check_len_buf = [0u8; 1];
         reader.read_exact(&mut check_len_buf)?;
         let check_len = check_len_buf[0] as usize;
+        
+        if check_len > MAX_CHECKSUM_LEN {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "Checksum too long"));
+        }
+        
         let mut check_buf = vec![0u8; check_len];
         reader.read_exact(&mut check_buf)?;
         let file_checksum = String::from_utf8_lossy(&check_buf).to_string();

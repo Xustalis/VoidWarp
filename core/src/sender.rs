@@ -3,7 +3,7 @@
 //! Handles sending files over TCP with checksum verification, chunking,
 //! acknowledgments, and resume support.
 
-use crate::checksum::{calculate_chunk_checksum, calculate_file_checksum};
+use crate::checksum::{calculate_chunk_checksum, calculate_chunk_checksum_raw, calculate_file_checksum};
 use crate::io_utils::MultiFileReader;
 use crate::protocol::TransferType;
 use std::io::{Read, Seek, Write};
@@ -265,6 +265,9 @@ impl TcpFileSender {
             }
         };
 
+        if let Err(e) = stream.set_nodelay(true) {
+            tracing::warn!("Failed to set TCP_NODELAY: {}", e);
+        }
         if let Err(e) = stream.set_read_timeout(Some(ACK_TIMEOUT)) {
             tracing::warn!("Failed to set read timeout: {}", e);
         }
@@ -394,7 +397,7 @@ impl TcpFileSender {
             };
 
             let chunk_data = &chunk_buffer[..bytes_read];
-            let chunk_checksum = calculate_chunk_checksum(chunk_data);
+            let chunk_checksum = calculate_chunk_checksum_raw(chunk_data);
 
             // Send chunk with retries
             let mut retries = 0;
@@ -510,28 +513,15 @@ impl TcpFileSender {
         stream: &mut TcpStream,
         index: u64,
         data: &[u8],
-        checksum: &str,
+        checksum: &[u8; 16],
     ) -> std::io::Result<()> {
         // [chunk_index: u64 BE][chunk_len: u32 BE][data][checksum: 16 bytes md5 binary]
         stream.write_all(&index.to_be_bytes())?;
         stream.write_all(&(data.len() as u32).to_be_bytes())?;
         stream.write_all(data)?;
 
-        // Convert hex checksum to bytes (full 16 bytes/128 bits)
-        let checksum_bytes: Vec<u8> = (0..checksum.len())
-            .step_by(2)
-            .filter_map(|i| u8::from_str_radix(&checksum[i..i + 2], 16).ok())
-            .collect();
-
-        // Ensure we send exactly 16 bytes
-        if checksum_bytes.len() != 16 {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "Invalid checksum length",
-            ));
-        }
-
-        stream.write_all(&checksum_bytes)?;
+        // Ensure we send exactly 16 bytes (parameter type already ensures this)
+        stream.write_all(checksum)?;
 
         stream.flush()?;
         Ok(())
