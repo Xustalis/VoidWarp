@@ -1,4 +1,4 @@
-use crate::protocol::{ManifestItem, TransferManifest};
+use crate::protocol::TransferManifest;
 use std::fs::{self, File};
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -102,13 +102,11 @@ impl Read for MultiFileReader {
         let file = self.current_file.as_mut().unwrap();
         let n = file.read(buf)?;
 
-        if n == 0 {
-            if relative_offset < self.file_sizes[file_idx] {
-                return Err(io::Error::new(
-                    io::ErrorKind::UnexpectedEof,
-                    "File truncated during transfer",
-                ));
-            }
+        if n == 0 && relative_offset < self.file_sizes[file_idx] {
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "File truncated during transfer",
+            ));
         }
 
         self.global_offset += n as u64;
@@ -373,7 +371,7 @@ fn handle_folder_write(
                 }
             }
             FolderWriterState::Error(e) => {
-                return Err(io::Error::new(io::ErrorKind::Other, e.clone()));
+                return Err(io::Error::other(e.clone()));
             }
         }
     }

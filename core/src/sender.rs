@@ -6,8 +6,7 @@
 use crate::checksum::{calculate_chunk_checksum, calculate_file_checksum};
 use crate::io_utils::MultiFileReader;
 use crate::protocol::TransferType;
-use std::fs::File;
-use std::io::{BufReader, Read, Seek, Write};
+use std::io::{Read, Seek, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -489,7 +488,7 @@ impl TcpFileSender {
 
     /// Send handshake packet
     fn send_handshake(&self, stream: &mut TcpStream, sender_name: &str) -> std::io::Result<()> {
-        use crate::protocol::{HandshakeRequest, TransferType};
+        use crate::protocol::HandshakeRequest;
 
         let request = HandshakeRequest::new(
             sender_name,

@@ -1,0 +1,95 @@
+﻿cargo :     Checking voidwarp-core v1.0.0 (G:\
+project\VoidWarp\core)
+所在位置 行:1 字符: 1
++ cargo clippy -- -D warnings 2>&1 | Out-File 
+-FilePath clippy_output.t ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ( 
+       Checking vo...\VoidWarp\core):String)  
+   [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandEr 
+   ror
+ 
+error: this `if` statement can be collapsed
+   --> core\src\io_utils.rs:105:9
+    |
+105 | /         if n == 0 {
+106 | |             if relative_offset < self.
+file_sizes[file_idx] {
+107 | |                 return Err(io::Error::
+new(
+108 | |                     io::ErrorKind::Une
+xpectedEof,
+...   |
+112 | |         }
+    | |_________^
+    |
+    = help: for further information visit http
+s://rust-lang.github.io/rust-clippy/rust-1.92.
+0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implie
+d by `-D warnings`
+    = help: to override `-D warnings` add `#[a
+llow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+105 ~         if n == 0
+106 ~             && relative_offset < self.fi
+le_sizes[file_idx] {
+107 |                 return Err(io::Error::ne
+w(
+...
+110 |                 ));
+111 ~             }
+    |
+
+error: this can be `std::io::Error::other(_)`
+   --> core\src\io_utils.rs:376:28
+    |
+376 |                 return Err(io::Error::ne
+w(io::ErrorKind::Other, e.clone()));
+    |                            ^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit http
+s://rust-lang.github.io/rust-clippy/rust-1.92.
+0/index.html#io_other_error
+    = note: `-D clippy::io-other-error` implie
+d by `-D warnings`
+    = help: to override `-D warnings` add `#[a
+llow(clippy::io_other_error)]`
+help: use `std::io::Error::other`
+    |
+376 -                 return Err(io::Error::ne
+w(io::ErrorKind::Other, e.clone()));
+376 +                 return Err(io::Error::ot
+her(e.clone()));
+    |
+
+error: this can be `std::io::Error::other(_)`
+   --> core\src\receiver.rs:378:54
+    |
+378 |                       writer.manifest_ch
+ecksum().ok_or(std::io::Error::new(
+    |  _______________________________________
+_______________^
+379 | |                         std::io::Error
+Kind::Other,
+380 | |                         "No manifest c
+hecksum",
+381 | |                     ))?
+    | |_____________________^
+    |
+    = help: for further information visit http
+s://rust-lang.github.io/rust-clippy/rust-1.92.
+0/index.html#io_other_error
+help: use `std::io::Error::other`
+    |
+378 ~                     writer.manifest_chec
+ksum().ok_or(std::io::Error::other(
+379 ~                         "No manifest che
+cksum",
+    |
+
+error: could not compile `voidwarp-core` (lib)
+ due to 3 previous errors

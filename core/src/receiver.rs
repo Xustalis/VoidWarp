@@ -2,8 +2,7 @@
 //!
 //! TCP-based file receiver for accepting incoming file transfers.
 
-use std::fs::File;
-use std::io::{Read, Seek, Write};
+use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -376,10 +375,9 @@ impl FileReceiverServer {
 
                 tracing::info!("Calculating final file checksum...");
                 let final_checksum = if info.transfer_type == TransferType::Folder {
-                    writer.manifest_checksum().ok_or(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "No manifest checksum",
-                    ))?
+                    writer
+                        .manifest_checksum()
+                        .ok_or(std::io::Error::other("No manifest checksum"))?
                 } else {
                     calculate_file_checksum(save_path)?
                 };
