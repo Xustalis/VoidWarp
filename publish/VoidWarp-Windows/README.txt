@@ -1,6 +1,16 @@
-﻿VoidWarp Windows Client
-=======================
+VoidWarp Windows Client - Self-Contained Edition
+=================================================
 
-浣跨敤鏂规硶锛?  1. 瑙ｅ帇鍚庡弻鍑昏繍琛?VoidWarp.Windows.exe锛堟垨鍏堣繍琛?install.bat 瀹夎锛?  2. 鑻?Android 鎵弿涓嶅埌鏈満锛氳浠ョ鐞嗗憳韬唤杩愯 setup_firewall.bat
+Usage:
+  1. Run VoidWarp.Windows.exe directly
+  2. Or run install.bat to create shortcuts
+  3. If Android cannot find Windows: Run setup_firewall.bat as Administrator
 
-绯荤粺瑕佹眰锛歐indows 10/11锛?NET 8.0 Runtime
+Features:
+  - No .NET Runtime installation required
+  - No VC++ Redistributable required
+  - Ready to use out of the box
+
+System Requirements:
+  - Windows 10/11 x64
+

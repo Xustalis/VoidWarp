@@ -1,26 +1,74 @@
 @echo off
 REM ========================================
-REM VoidWarp Windows Client - Publish
+REM VoidWarp Windows Client - Publish (Self-Contained)
+REM Creates a standalone package that requires no environment
 REM ========================================
 echo.
 echo ========================================
-echo VoidWarp Windows Client - Publish
+echo VoidWarp Windows Client - Self-Contained Publish
 echo ========================================
 echo.
 
 cd /d "%~dp0"
 
-REM Step 1: Build Release version
-echo [Step 1/4] Building Release version...
-call build_windows.bat
+REM Step 1: Check for Rust toolchain
+echo [Step 1/5] Checking Rust toolchain...
+where cargo >nul 2>&1
 if errorlevel 1 (
-    echo ERROR: Build failed!
+    echo ERROR: Cargo not found! Please install Rust from https://rustup.rs/
+    echo.
+    pause
     exit /b 1
 )
+echo   ^> Rust toolchain found
 echo.
 
-REM Step 2: Create publish directory
-echo [Step 2/4] Creating publish package...
+REM Step 2: Build Rust core library
+echo [Step 2/5] Building Rust core library...
+cd core
+echo   ^> Running: cargo build --release
+cargo build --release
+if errorlevel 1 (
+    echo ERROR: Rust build failed!
+    echo.
+    cd ..
+    pause
+    exit /b 1
+)
+cd ..
+echo   ^> Rust core built successfully
+echo.
+
+REM Step 3: Verify DLL exists
+echo [Step 3/5] Verifying DLL...
+if not exist "target\release\voidwarp_core.dll" (
+    echo ERROR: voidwarp_core.dll not found in target\release\
+    echo.
+    pause
+    exit /b 1
+)
+echo   ^> DLL verified: target\release\voidwarp_core.dll
+echo.
+
+REM Step 4: Build Self-Contained Windows client
+echo [Step 4/5] Building self-contained Windows client...
+echo   ^> This produces a standalone package with embedded .NET Runtime
+cd platforms\windows
+echo   ^> Running: dotnet publish -c Release -r win-x64 --self-contained true
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -p:IncludeNativeLibrariesForSelfExtract=false
+if errorlevel 1 (
+    echo ERROR: dotnet publish failed!
+    echo.
+    cd ..\..
+    pause
+    exit /b 1
+)
+cd ..\..
+echo   ^> Self-contained client built successfully
+echo.
+
+REM Step 5: Create publish directory
+echo [Step 5/5] Creating publish package...
 set PUBLISH_DIR=publish\VoidWarp-Windows
 if exist "%PUBLISH_DIR%" (
     echo   ^> Cleaning old publish directory...
@@ -30,34 +78,27 @@ mkdir "%PUBLISH_DIR%"
 echo   ^> Created: %PUBLISH_DIR%
 echo.
 
-REM Step 3: Copy files
-echo [Step 3/4] Copying files...
-
-set BIN_DIR=platforms\windows\bin\Release\net8.0-windows
+REM Copy files from self-contained publish output
+set BIN_DIR=platforms\windows\bin\Release\net8.0-windows\win-x64\publish
 if not exist "%BIN_DIR%\VoidWarp.Windows.exe" (
     echo ERROR: Build output not found. Expected: %BIN_DIR%\VoidWarp.Windows.exe
     exit /b 1
 )
-if not exist "%BIN_DIR%\voidwarp_core.dll" (
-    echo ERROR: voidwarp_core.dll not found in %BIN_DIR%\
-    exit /b 1
-)
 
-REM Copy executable and DLL
-echo   ^> Copying executable and DLLs...
-copy /Y "%BIN_DIR%\VoidWarp.Windows.exe" "%PUBLISH_DIR%\"
-copy /Y "%BIN_DIR%\VoidWarp.Windows.dll" "%PUBLISH_DIR%\"
-copy /Y "%BIN_DIR%\voidwarp_core.dll" "%PUBLISH_DIR%\"
+REM Copy all files from publish folder (includes .NET runtime)
+echo   ^> Copying self-contained files (includes .NET Runtime)...
+xcopy /E /Y /Q "%BIN_DIR%\*" "%PUBLISH_DIR%\"
 if errorlevel 1 (
     echo ERROR: Copy failed!
     exit /b 1
 )
 
-REM Copy runtime config
-copy /Y "%BIN_DIR%\*.runtimeconfig.json" "%PUBLISH_DIR%\" >nul 2>&1
-copy /Y "%BIN_DIR%\*.deps.json" "%PUBLISH_DIR%\" >nul 2>&1
+REM Ensure voidwarp_core.dll is copied
+if not exist "%PUBLISH_DIR%\voidwarp_core.dll" (
+    copy /Y "target\release\voidwarp_core.dll" "%PUBLISH_DIR%\"
+)
 
-REM Copy firewall and install scripts
+REM Copy firewall setup script
 echo   ^> Copying scripts...
 copy /Y "platforms\windows\setup_firewall.bat" "%PUBLISH_DIR%\setup_firewall.bat"
 if exist "platforms\windows\publish\install.bat" copy /Y "platforms\windows\publish\install.bat" "%PUBLISH_DIR%\"
@@ -66,27 +107,21 @@ if exist "platforms\windows\publish\uninstall.bat" copy /Y "platforms\windows\pu
 REM Create README
 echo   ^> Creating README...
 (
-echo VoidWarp Windows Client
-echo =======================
+echo VoidWarp Windows Client - Self-Contained Edition
+echo =================================================
 echo.
-echo 使用方法：
-echo   1. 解压后双击运行 VoidWarp.Windows.exe（或先运行 install.bat 安装）
-echo   2. 若 Android 扫描不到本机：请以管理员身份运行 setup_firewall.bat
+echo Usage:
+echo   1. Run VoidWarp.Windows.exe directly
+echo   2. Or run install.bat to create shortcuts
+echo   3. If Android cannot find Windows: Run setup_firewall.bat as Administrator
 echo.
-echo 功能：
-echo   - 设备发现（mDNS + UDP 广播，多网卡兼容）
-echo   - 文件发送（选择文件后发送）
-echo   - 文件接收（自动监听）
-echo   - 实时进度显示
-echo   - 日志记录
+echo Features:
+echo   - No .NET Runtime installation required
+echo   - No VC++ Redistributable required
+echo   - Ready to use out of the box
 echo.
-echo 系统要求：
-echo   - Windows 10/11
-echo   - .NET 8.0 Runtime（如未安装，首次运行会提示）
-echo.
-echo 问题排查：
-echo   - Android 发现不了 Windows -^> 1^) 以管理员运行 setup_firewall.bat  2^) 确保 Android 端为最新构建
-echo   - 缺少 voidwarp_core.dll -^> 从完整安装包重新解压或运行 build_windows.bat
+echo System Requirements:
+echo   - Windows 10/11 x64
 echo.
 ) > "%PUBLISH_DIR%\README.txt"
 
@@ -107,33 +142,32 @@ if not exist "%PUBLISH_DIR%\voidwarp_core.dll" (
 echo   ^> Files copied and verified
 echo.
 
-REM Step 4: Create ZIP install package (requires PowerShell)
-echo [Step 4/4] Creating ZIP package...
+REM Create ZIP install package (requires PowerShell)
+echo Creating ZIP package...
 set ZIP_NAME=VoidWarp-Windows-x64.zip
 powershell -NoProfile -Command "Compress-Archive -Path '%PUBLISH_DIR%' -DestinationPath 'publish\%ZIP_NAME%' -Force" 2>nul
 if exist "publish\%ZIP_NAME%" (
     echo   ^> Created: publish\%ZIP_NAME%
 ) else (
-    echo   ^> ZIP skipped (manual: compress %PUBLISH_DIR% to get install package)
+    echo   ^> ZIP skipped
 )
 
 REM Show summary
 echo.
 echo ========================================
-echo PUBLISH COMPLETED!
+echo SELF-CONTAINED PUBLISH COMPLETED!
 echo ========================================
 echo.
 echo Package folder: %PUBLISH_DIR%
 if exist "publish\%ZIP_NAME%" echo Install package ZIP: publish\%ZIP_NAME%
 echo.
-echo Contents:
-dir /b "%PUBLISH_DIR%"
+echo NEXT STEP: Build installer (optional)
+echo   cd platforms\windows\installer
+echo   build_installer.bat
 echo.
-echo To distribute: share the folder or publish\%ZIP_NAME%
-echo To build .exe installer (optional): install Inno Setup 6, then from project root run:
-echo   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" platforms\windows\installer\VoidWarp.iss
-echo   Output: publish\output\VoidWarp-Windows-x64-Setup.exe
-echo.
-echo To test: cd %PUBLISH_DIR% ^& VoidWarp.Windows.exe
+echo This package is SELF-CONTAINED:
+echo   - No .NET Runtime installation required
+echo   - No VC++ Redistributable required
+echo   - Just run VoidWarp.Windows.exe directly!
 echo.
 pause

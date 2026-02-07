@@ -265,7 +265,7 @@ impl FileReceiverServer {
                     tracing::info!("Starting folder transfer (fresh)");
                     writer = ReceiverWriter::new_folder(save_path);
                 } else if save_path.exists() {
-                     // Check existing file for resume
+                    // Check existing file for resume
                     let metadata = std::fs::metadata(save_path)?;
                     let current_len = metadata.len();
 
@@ -376,9 +376,12 @@ impl FileReceiverServer {
 
                 tracing::info!("Calculating final file checksum...");
                 let final_checksum = if info.transfer_type == TransferType::Folder {
-                     writer.manifest_checksum().ok_or(std::io::Error::new(std::io::ErrorKind::Other, "No manifest checksum"))?
+                    writer.manifest_checksum().ok_or(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "No manifest checksum",
+                    ))?
                 } else {
-                     calculate_file_checksum(save_path)?
+                    calculate_file_checksum(save_path)?
                 };
 
                 let success = final_checksum == info.file_checksum;

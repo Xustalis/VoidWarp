@@ -61,7 +61,10 @@ impl TcpFileSender {
     pub fn new(path_str: &str) -> std::io::Result<Self> {
         let path = Path::new(path_str);
         if !path.exists() {
-             return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "Path not found"));
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Path not found",
+            ));
         }
 
         if path.is_dir() {
@@ -112,7 +115,7 @@ impl TcpFileSender {
         // Recursive scan
         // Use a stack for non-recursive iteration to avoid stack overflow on deepdirs
         let mut stack = vec![root_path.to_path_buf()];
-        
+
         while let Some(path) = stack.pop() {
             if path.is_dir() {
                 for entry in fs::read_dir(&path)? {
@@ -122,50 +125,55 @@ impl TcpFileSender {
             } else {
                 let metadata = path.metadata()?;
                 let size = metadata.len();
-                
+
                 // compute relative path
-                let relative_path = path.strip_prefix(root_path)
+                let relative_path = path
+                    .strip_prefix(root_path)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?
                     .to_string_lossy()
                     .replace("\\", "/"); // standardize on forward slash
-                
+
                 // Compute hash (This might take time for large folders!)
                 // TODO: Optimize? Maybe compute lazily? Protocol requires hash upfront for Manifest...
                 // V2 Protocol requires Manifest Hash in Handshake. Manifest contains File hashes.
                 // So we MUST compute all file hashes now.
                 tracing::debug!("Hashing file: {}", relative_path);
                 let hash = calculate_file_checksum(&path)?;
-                
+
                 items.push(ManifestItem {
                     path: relative_path,
                     size,
                     hash,
                 });
-                
+
                 total_content_size += size;
                 files_to_send.push(path);
             }
         }
-        
+
         // Create Manifest
         let manifest = TransferManifest {
             items,
             total_size: total_content_size,
         };
-        
+
         let manifest_json = serde_json::to_string(&manifest)?;
         let manifest_bytes = manifest_json.into_bytes();
         // Pack length (4 bytes u32 big endian) + JSON bytes
         let mut full_manifest_data = Vec::new();
         full_manifest_data.extend_from_slice(&(manifest_bytes.len() as u32).to_be_bytes());
         full_manifest_data.extend_from_slice(&manifest_bytes);
-        
+
         // Calculate checksum of the MANIFEST (not the files, files are hashed inside manifest)
         let manifest_hash = crate::checksum::calculate_chunk_checksum(&manifest_bytes);
-        
+
         let total_transfer_size = (full_manifest_data.len() as u64) + total_content_size;
-        
-        tracing::info!("Folder scan complete. {} files, total size: {}", files_to_send.len(), total_transfer_size);
+
+        tracing::info!(
+            "Folder scan complete. {} files, total size: {}",
+            files_to_send.len(),
+            total_transfer_size
+        );
 
         Ok(TcpFileSender {
             file_path: folder_path.to_string(),
@@ -345,10 +353,11 @@ impl TcpFileSender {
         };
 
         // Create MultiFileReader
-        let mut reader = match MultiFileReader::new(self.manifest_bytes.clone(), self.files_to_send.clone()) {
-            Ok(r) => r,
-            Err(e) => return TransferResult::IoError(e.to_string()),
-        };
+        let mut reader =
+            match MultiFileReader::new(self.manifest_bytes.clone(), self.files_to_send.clone()) {
+                Ok(r) => r,
+                Err(e) => return TransferResult::IoError(e.to_string()),
+            };
 
         // Skip to resume position
         let start_offset = start_chunk * self.chunk_size as u64;
@@ -358,11 +367,14 @@ impl TcpFileSender {
                 start_chunk,
                 start_offset
             );
-            
+
             if let Err(e) = reader.seek(std::io::SeekFrom::Start(start_offset)) {
-                 return TransferResult::IoError(format!("Failed to seek to resume position: {}", e));
+                return TransferResult::IoError(format!(
+                    "Failed to seek to resume position: {}",
+                    e
+                ));
             }
-            
+
             self.bytes_sent.store(start_offset, Ordering::SeqCst);
         }
 
