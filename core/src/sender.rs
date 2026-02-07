@@ -4,10 +4,12 @@
 //! acknowledgments, and resume support.
 
 use crate::checksum::{calculate_chunk_checksum, calculate_file_checksum};
+use crate::io_utils::MultiFileReader;
+use crate::protocol::TransferType;
 use std::fs::File;
-use std::io::{BufReader, Read, Write};
+use std::io::{BufReader, Read, Seek, Write};
 use std::net::{SocketAddr, TcpStream};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -49,11 +51,28 @@ pub struct TcpFileSender {
     bytes_sent: Arc<AtomicU64>,
     cancelled: Arc<AtomicBool>,
     resume_from_chunk: u64,
+    transfer_type: TransferType,
+    manifest_bytes: Vec<u8>,
+    files_to_send: Vec<PathBuf>,
 }
 
 impl TcpFileSender {
-    /// Create a new file sender
-    pub fn new(file_path: &str) -> std::io::Result<Self> {
+    /// Create a new file sender (handles both files and folders)
+    pub fn new(path_str: &str) -> std::io::Result<Self> {
+        let path = Path::new(path_str);
+        if !path.exists() {
+             return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "Path not found"));
+        }
+
+        if path.is_dir() {
+            Self::new_folder(path_str)
+        } else {
+            Self::new_single_file(path_str)
+        }
+    }
+
+    /// Create a sender for a single file
+    fn new_single_file(file_path: &str) -> std::io::Result<Self> {
         let path = Path::new(file_path);
         let metadata = path.metadata()?;
         let file_size = metadata.len();
@@ -62,14 +81,103 @@ impl TcpFileSender {
         let file_checksum = calculate_file_checksum(path)?;
         tracing::info!("File checksum: {}", file_checksum);
 
+        use crate::protocol::TransferType;
+
         Ok(TcpFileSender {
-            file_path: file_path.to_string(),
+            file_path: file_path.to_string(), // Root path
             file_size,
             file_checksum,
             chunk_size: DEFAULT_CHUNK_SIZE,
             bytes_sent: Arc::new(AtomicU64::new(0)),
             cancelled: Arc::new(AtomicBool::new(false)),
             resume_from_chunk: 0,
+            transfer_type: TransferType::SingleFile,
+            manifest_bytes: vec![],
+            files_to_send: vec![path.to_path_buf()],
+        })
+    }
+
+    /// Create a sender for a folder
+    fn new_folder(folder_path: &str) -> std::io::Result<Self> {
+        use crate::protocol::{ManifestItem, TransferManifest, TransferType};
+        use std::fs;
+
+        let root_path = Path::new(folder_path);
+        let mut items = Vec::new();
+        let mut total_content_size = 0u64;
+        let mut files_to_send = Vec::new();
+
+        tracing::info!("Scanning folder: {}", folder_path);
+
+        // Recursive scan
+        // Use a stack for non-recursive iteration to avoid stack overflow on deepdirs
+        let mut stack = vec![root_path.to_path_buf()];
+        
+        while let Some(path) = stack.pop() {
+            if path.is_dir() {
+                for entry in fs::read_dir(&path)? {
+                    let entry = entry?;
+                    stack.push(entry.path());
+                }
+            } else {
+                let metadata = path.metadata()?;
+                let size = metadata.len();
+                
+                // compute relative path
+                let relative_path = path.strip_prefix(root_path)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?
+                    .to_string_lossy()
+                    .replace("\\", "/"); // standardize on forward slash
+                
+                // Compute hash (This might take time for large folders!)
+                // TODO: Optimize? Maybe compute lazily? Protocol requires hash upfront for Manifest...
+                // V2 Protocol requires Manifest Hash in Handshake. Manifest contains File hashes.
+                // So we MUST compute all file hashes now.
+                tracing::debug!("Hashing file: {}", relative_path);
+                let hash = calculate_file_checksum(&path)?;
+                
+                items.push(ManifestItem {
+                    path: relative_path,
+                    size,
+                    hash,
+                });
+                
+                total_content_size += size;
+                files_to_send.push(path);
+            }
+        }
+        
+        // Create Manifest
+        let manifest = TransferManifest {
+            items,
+            total_size: total_content_size,
+        };
+        
+        let manifest_json = serde_json::to_string(&manifest)?;
+        let manifest_bytes = manifest_json.into_bytes();
+        // Pack length (4 bytes u32 big endian) + JSON bytes
+        let mut full_manifest_data = Vec::new();
+        full_manifest_data.extend_from_slice(&(manifest_bytes.len() as u32).to_be_bytes());
+        full_manifest_data.extend_from_slice(&manifest_bytes);
+        
+        // Calculate checksum of the MANIFEST (not the files, files are hashed inside manifest)
+        let manifest_hash = crate::checksum::calculate_chunk_checksum(&manifest_bytes);
+        
+        let total_transfer_size = (full_manifest_data.len() as u64) + total_content_size;
+        
+        tracing::info!("Folder scan complete. {} files, total size: {}", files_to_send.len(), total_transfer_size);
+
+        Ok(TcpFileSender {
+            file_path: folder_path.to_string(),
+            file_size: total_transfer_size,
+            file_checksum: manifest_hash,
+            chunk_size: DEFAULT_CHUNK_SIZE,
+            bytes_sent: Arc::new(AtomicU64::new(0)),
+            cancelled: Arc::new(AtomicBool::new(false)),
+            resume_from_chunk: 0,
+            transfer_type: TransferType::Folder,
+            manifest_bytes: full_manifest_data,
+            files_to_send,
         })
     }
 
@@ -236,32 +344,26 @@ impl TcpFileSender {
             }
         };
 
-        // Open file and seek to resume position
-        let file = match File::open(&self.file_path) {
-            Ok(f) => f,
+        // Create MultiFileReader
+        let mut reader = match MultiFileReader::new(self.manifest_bytes.clone(), self.files_to_send.clone()) {
+            Ok(r) => r,
             Err(e) => return TransferResult::IoError(e.to_string()),
         };
-        let mut reader = BufReader::with_capacity(self.chunk_size, file);
 
         // Skip to resume position
         let start_offset = start_chunk * self.chunk_size as u64;
         if start_offset > 0 {
-            let mut skip_buf = vec![0u8; std::cmp::min(start_offset as usize, 8 * 1024 * 1024)];
-            let mut skipped: u64 = 0;
-            while skipped < start_offset {
-                let to_skip = std::cmp::min(skip_buf.len() as u64, start_offset - skipped) as usize;
-                match reader.read(&mut skip_buf[..to_skip]) {
-                    Ok(0) => break,
-                    Ok(n) => skipped += n as u64,
-                    Err(e) => return TransferResult::IoError(e.to_string()),
-                }
-            }
-            self.bytes_sent.store(skipped, Ordering::SeqCst);
             tracing::info!(
                 "Resuming from chunk {}, offset {}",
                 start_chunk,
                 start_offset
             );
+            
+            if let Err(e) = reader.seek(std::io::SeekFrom::Start(start_offset)) {
+                 return TransferResult::IoError(format!("Failed to seek to resume position: {}", e));
+            }
+            
+            self.bytes_sent.store(start_offset, Ordering::SeqCst);
         }
 
         // Send file in chunks
@@ -375,7 +477,7 @@ impl TcpFileSender {
 
     /// Send handshake packet
     fn send_handshake(&self, stream: &mut TcpStream, sender_name: &str) -> std::io::Result<()> {
-        use crate::protocol::HandshakeRequest;
+        use crate::protocol::{HandshakeRequest, TransferType};
 
         let request = HandshakeRequest::new(
             sender_name,
@@ -383,6 +485,7 @@ impl TcpFileSender {
             self.file_size,
             self.chunk_size as u32,
             &self.file_checksum,
+            self.transfer_type,
         );
 
         request.write_to(stream)?;

@@ -21,6 +21,8 @@ const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(60);
 // Data timeout - for receiving chunks during active transfer
 const DATA_TIMEOUT: Duration = Duration::from_secs(30);
 
+use crate::protocol::TransferType;
+
 /// Incoming transfer request information
 #[derive(Debug, Clone)]
 pub struct IncomingTransfer {
@@ -30,6 +32,7 @@ pub struct IncomingTransfer {
     pub file_size: u64,
     pub chunk_size: u32,
     pub file_checksum: String, // Hex string
+    pub transfer_type: TransferType,
 }
 
 /// Receiver state
@@ -185,6 +188,7 @@ impl FileReceiverServer {
                             file_size: handshake.file_size,
                             chunk_size: handshake.chunk_size,
                             file_checksum: handshake.file_checksum,
+                            transfer_type: handshake.transfer_type,
                         };
 
                         *pending_transfer.lock().unwrap() = Some(transfer);
@@ -247,13 +251,21 @@ impl FileReceiverServer {
                     return Err(e);
                 }
 
-                // Create or open the file for resume
+                use crate::io_utils::ReceiverWriter;
+                use crate::protocol::TransferType;
+
+                // Create or open the writer for resume
                 let mut start_chunk_index: u64 = 0;
                 let mut received: u64 = 0;
-                let mut file;
+                let mut writer: ReceiverWriter;
 
-                if save_path.exists() {
-                    // Check existing file for resume
+                if info.transfer_type == TransferType::Folder {
+                    // For folder, we always start fresh for now
+                    // TODO: Implement advanced resume for folders
+                    tracing::info!("Starting folder transfer (fresh)");
+                    writer = ReceiverWriter::new_folder(save_path);
+                } else if save_path.exists() {
+                     // Check existing file for resume
                     let metadata = std::fs::metadata(save_path)?;
                     let current_len = metadata.len();
 
@@ -268,21 +280,17 @@ impl FileReceiverServer {
                             valid_chunks
                         );
 
-                        // Open and truncate to valid boundary
-                        let mut f = std::fs::OpenOptions::new().write(true).open(save_path)?;
-                        f.set_len(valid_len)?;
-                        f.seek(std::io::SeekFrom::Start(valid_len))?;
-
-                        file = f;
+                        // Resume writer
+                        writer = ReceiverWriter::resume_single(save_path, valid_len)?;
                         start_chunk_index = valid_chunks;
                         received = valid_len;
                     } else {
                         // Overwrite if full, larger, or invalid chunk size
                         tracing::info!("Overwriting existing file");
-                        file = File::create(save_path)?;
+                        writer = ReceiverWriter::new_single(save_path)?;
                     }
                 } else {
-                    file = File::create(save_path)?;
+                    writer = ReceiverWriter::new_single(save_path)?;
                 }
 
                 // Send resume index
@@ -351,7 +359,7 @@ impl FileReceiverServer {
                     }
 
                     // Write to file
-                    file.write_all(&data)?;
+                    writer.write_all(&data)?;
                     received += data.len() as u64; // Use actual data len
                     self.bytes_received.store(received, Ordering::SeqCst);
 
@@ -364,10 +372,15 @@ impl FileReceiverServer {
 
                 // Final verification
                 tracing::info!("All chunks received, flushing to disk and verifying...");
-                file.flush()?;
+                writer.flush()?;
 
                 tracing::info!("Calculating final file checksum...");
-                let final_checksum = calculate_file_checksum(save_path)?;
+                let final_checksum = if info.transfer_type == TransferType::Folder {
+                     writer.manifest_checksum().ok_or(std::io::Error::new(std::io::ErrorKind::Other, "No manifest checksum"))?
+                } else {
+                     calculate_file_checksum(save_path)?
+                };
+
                 let success = final_checksum == info.file_checksum;
 
                 if success {

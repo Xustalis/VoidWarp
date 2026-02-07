@@ -5,19 +5,64 @@
 use std::io::{self, Read, Write};
 
 /// P2P Protocol Version (increment when changing handshake format)
-pub const PROTOCOL_VERSION: u8 = 1;
+/// P2P Protocol Version (increment when changing handshake format)
+pub const PROTOCOL_VERSION: u8 = 2;
+
+/// Transfer Type Enum
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TransferType {
+    SingleFile = 0,
+    Folder = 1,
+}
+
+impl From<u8> for TransferType {
+    fn from(v: u8) -> Self {
+        match v {
+            1 => TransferType::Folder,
+            _ => TransferType::SingleFile,
+        }
+    }
+}
 
 /// Handshake Request sent by Sender
-/// [VERSION:u8][SENDER_NAME_LEN:u8][SENDER_NAME:bytes][FILE_NAME_LEN:u16][FILE_NAME:bytes]
-/// [FILE_SIZE:u64][CHUNK_SIZE:u32][CHECKSUM_LEN:u8][CHECKSUM:bytes]
+/// V2 Format:
+/// [VERSION:u8]
+/// [TRANSFER_TYPE:u8]
+/// [SENDER_NAME_LEN:u8][SENDER_NAME:bytes]
+/// [FILE_NAME_LEN:u16][FILE_NAME:bytes] (For folder, this is the root folder name)
+/// [FILE_SIZE:u64] (Total size of all files + manifest)
+/// [CHUNK_SIZE:u32]
+/// [CHECKSUM_LEN:u8][CHECKSUM:bytes] (For folder, this is the Manifest JSON hash)
 #[derive(Debug, Clone)]
 pub struct HandshakeRequest {
     pub version: u8,
+    pub transfer_type: TransferType,
     pub sender_name: String,
     pub file_name: String,
     pub file_size: u64,
     pub chunk_size: u32,
     pub file_checksum: String,
+}
+
+/// Represents a single file in the transfer manifest
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ManifestItem {
+    /// Relative path from root (e.g., "subfolder/file.txt")
+    /// Uses forward slashes '/' as separator
+    pub path: String,
+    /// Size of the file in bytes
+    pub size: u64,
+    /// MD5 hash of the file content
+    pub hash: String,
+}
+
+/// The manifest sent at the beginning of a folder transfer
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TransferManifest {
+    /// List of files to transfer
+    pub items: Vec<ManifestItem>,
+    /// Total size of all files (sum of items.size)
+    pub total_size: u64,
 }
 
 impl HandshakeRequest {
@@ -27,9 +72,11 @@ impl HandshakeRequest {
         file_size: u64,
         chunk_size: u32,
         file_checksum: &str,
+        transfer_type: TransferType,
     ) -> Self {
         Self {
             version: PROTOCOL_VERSION,
+            transfer_type,
             sender_name: sender_name.to_string(),
             file_name: file_name.to_string(),
             file_size,
@@ -44,6 +91,7 @@ impl HandshakeRequest {
         let checksum_bytes = self.file_checksum.as_bytes();
 
         writer.write_all(&[self.version])?;
+        writer.write_all(&[self.transfer_type as u8])?;
 
         // Sender Name (limit 255 bytes)
         let sender_len = std::cmp::min(sender_bytes.len(), 255) as u8;
@@ -82,6 +130,10 @@ impl HandshakeRequest {
             ));
         }
 
+        let mut type_buf = [0u8; 1];
+        reader.read_exact(&mut type_buf)?;
+        let transfer_type = TransferType::from(type_buf[0]);
+
         // Sender Name
         let mut sender_len_buf = [0u8; 1];
         reader.read_exact(&mut sender_len_buf)?;
@@ -117,6 +169,7 @@ impl HandshakeRequest {
 
         Ok(Self {
             version,
+            transfer_type,
             sender_name,
             file_name,
             file_size,
