@@ -669,17 +669,44 @@ pub extern "C" fn voidwarp_receiver_accept(
     receiver: *mut FfiFileReceiver,
     save_path: *const c_char,
 ) -> i32 {
-    if receiver.is_null() || save_path.is_null() {
+    if receiver.is_null() {
+        tracing::error!("voidwarp_receiver_accept: Receiver is null");
+        return -1;
+    }
+    if save_path.is_null() {
+        tracing::error!("voidwarp_receiver_accept: Save path is null");
         return -1;
     }
 
     let path_str = unsafe { CStr::from_ptr(save_path) }.to_string_lossy();
+    tracing::info!(
+        "FFI: voidwarp_receiver_accept called with path: '{}'",
+        path_str
+    );
+
     let path = PathBuf::from(path_str.as_ref());
 
+    // Check receiver state before calling
+    let state = unsafe { (*receiver).server.state() };
+    tracing::info!("FFI: Current receiver state: {:?}", state);
+
     match unsafe { (*receiver).server.accept_transfer(&path) } {
-        Ok(_) => 0,
+        Ok(_) => {
+            tracing::info!("FFI: accept_transfer returned success");
+            0
+        }
         Err(e) => {
-            tracing::error!("Accept transfer failed: {}", e);
+            tracing::error!("FFI: Accept transfer failed: {}", e);
+            tracing::error!("FFI: Error kind: {:?}", e.kind());
+            // Check if file exists to debug permissions
+            if path.exists() {
+                tracing::warn!("FFI: Target file already exists at path");
+            } else if let Some(parent) = path.parent() {
+                tracing::info!("FFI: Parent dir exists: {}", parent.exists());
+                if !parent.exists() {
+                    tracing::warn!("FFI: Parent directory does not exist: {:?}", parent);
+                }
+            }
             -1
         }
     }

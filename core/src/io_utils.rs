@@ -168,6 +168,12 @@ pub enum FolderWriterState {
 
 impl ReceiverWriter {
     pub fn new_single(path: &Path) -> io::Result<Self> {
+        // Ensure parent directory exists (critical for Android Scoped Storage)
+        if let Some(parent) = path.parent() {
+            if !parent.as_os_str().is_empty() && !parent.exists() {
+                fs::create_dir_all(parent)?;
+            }
+        }
         let file = File::create(path)?;
         Ok(ReceiverWriter::SingleFile(file))
     }
@@ -185,6 +191,12 @@ impl ReceiverWriter {
 
     /// Create for resume (Single File)
     pub fn resume_single(path: &Path, len: u64) -> io::Result<Self> {
+        // Ensure parent directory exists
+        if let Some(parent) = path.parent() {
+            if !parent.as_os_str().is_empty() && !parent.exists() {
+                fs::create_dir_all(parent)?;
+            }
+        }
         let mut file = std::fs::OpenOptions::new().write(true).open(path)?;
         file.set_len(len)?;
         file.seek(SeekFrom::Start(len))?;

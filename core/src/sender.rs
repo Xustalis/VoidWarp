@@ -3,7 +3,7 @@
 //! Handles sending files over TCP with checksum verification, chunking,
 //! acknowledgments, and resume support.
 
-use crate::checksum::{calculate_chunk_checksum, calculate_chunk_checksum_raw, calculate_file_checksum};
+use crate::checksum::{calculate_chunk_checksum_raw, calculate_file_checksum};
 use crate::io_utils::MultiFileReader;
 use crate::protocol::TransferType;
 use std::io::{Read, Seek, Write};

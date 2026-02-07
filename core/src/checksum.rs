@@ -34,6 +34,12 @@ pub fn calculate_chunk_checksum(data: &[u8]) -> String {
     format!("{:x}", digest)
 }
 
+/// Calculate MD5 checksum of a byte slice and return raw bytes
+pub fn calculate_chunk_checksum_raw(data: &[u8]) -> [u8; 16] {
+    let digest = md5::compute(data);
+    digest.into()
+}
+
 /// Verify file checksum matches expected value
 pub fn verify_file_checksum(path: &Path, expected: &str) -> std::io::Result<bool> {
     let actual = calculate_file_checksum(path)?;

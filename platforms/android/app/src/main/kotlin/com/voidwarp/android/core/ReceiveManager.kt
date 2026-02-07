@@ -213,24 +213,12 @@ class ReceiveManager {
             val result = NativeLib.voidwarpReceiverAccept(receiverHandle, savePath)
             
             if (result == 0) {
-                while (isActive && _state.value == ReceiverState.RECEIVING) {
-                    _progress.value = NativeLib.voidwarpReceiverGetProgress(receiverHandle)
-                    _bytesReceived.value = NativeLib.voidwarpReceiverGetBytesReceived(receiverHandle)
-                    
-                    val newState = ReceiverState.fromInt(
-                        NativeLib.voidwarpReceiverGetState(receiverHandle)
-                    )
-                    
-                    if (newState == ReceiverState.COMPLETED || newState == ReceiverState.ERROR) {
-                        _state.value = newState
-                        break
-                    }
-                    
-                    delay(100)
-                }
-                
+                // Transfer succeeded natively.
+                // Note: The polling loop might have already seen COMPLETED and reset to LISTENING/IDLE.
+                // So we do NOT check _state.value here to avoid race conditions.
                 _pendingTransfer.value = null
-                _state.value == ReceiverState.COMPLETED
+                _state.value = ReceiverState.COMPLETED
+                true
             } else {
                 _state.value = ReceiverState.ERROR
                 false
