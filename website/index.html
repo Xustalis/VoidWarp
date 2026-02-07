@@ -309,7 +309,7 @@
                             class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-rust opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-2 w-2 bg-accent-rust"></span>
                     </span>
-                    <span class="text-xs font-mono text-gray-300 tracking-widest">SYSTEM ONLINE // V1.0.5</span>
+                    <span class="text-xs font-mono text-gray-300 tracking-widest">SYSTEM ONLINE // V1.0.0</span>
                 </div>
 
                 <h1 class="text-6xl md:text-7xl lg:text-8xl font-bold leading-tight tracking-tight">
@@ -681,10 +681,10 @@
                         class="absolute left-0 md:left-1/2 w-4 h-4 bg-void-bg border-2 border-gray-500 rounded-full md:-translate-x-1/2 z-10">
                     </div>
                     <div class="w-full md:w-5/12 pl-8">
-                        <h3 class="text-xl font-bold text-gray-200">v1.2 (Q3 2024)</h3>
-                        <p class="text-gray-400 text-sm mt-2 mb-4">剪贴板同步功能，支持文字和图片在设备间无缝复制粘贴。</p>
+                        <h3 class="text-xl font-bold text-gray-200">v1.1 (计划中)</h3>
+                        <p class="text-gray-400 text-sm mt-2 mb-4">文件夹传输优化、传输历史记录管理、断点续传增强。</p>
                         <div class="flex gap-2">
-                            <span class="text-xs bg-white/5 px-2 py-1 rounded text-gray-500">In Progress</span>
+                            <span class="text-xs bg-white/5 px-2 py-1 rounded text-gray-500">Planned</span>
                         </div>
                     </div>
                 </div>
@@ -692,8 +692,8 @@
                 <!-- Item 3 -->
                 <div class="relative flex flex-col md:flex-row items-center justify-between w-full group">
                     <div class="w-full md:w-5/12 text-right md:pr-8 pl-8 md:pl-0">
-                        <h3 class="text-xl font-bold text-gray-200">v2.0 (Future)</h3>
-                        <p class="text-gray-400 text-sm mt-2">iOS 与 macOS 客户端支持，实现全平台覆盖。引入中继模式以支持跨网段传输。</p>
+                        <h3 class="text-xl font-bold text-gray-200">v2.0 (未来)</h3>
+                        <p class="text-gray-400 text-sm mt-2">macOS 与 iOS 客户端支持，实现全平台覆盖。剪贴板同步、中继模式跨网段传输。</p>
                     </div>
                     <div
                         class="absolute left-0 md:left-1/2 w-4 h-4 bg-void-bg border-2 border-gray-500 rounded-full md:-translate-x-1/2 z-10">
@@ -704,62 +704,6 @@
         </div>
     </section>
 
-    <!-- FAQ Section (NEW) -->
-    <section id="faq" class="py-24 relative">
-        <div class="max-w-3xl mx-auto px-6">
-            <div class="text-center mb-16">
-                <h2 class="text-3xl font-bold mb-4">常见问题</h2>
-            </div>
-
-            <div class="space-y-4">
-                <details class="glass-card rounded-lg group">
-                    <summary class="flex justify-between items-center p-6 cursor-pointer list-none">
-                        <span class="font-medium text-lg">传输速度有多快？</span>
-                        <span class="transition group-open:rotate-180"><i
-                                class="fa-solid fa-chevron-down text-gray-500"></i></span>
-                    </summary>
-                    <div class="px-6 pb-6 text-gray-400 text-sm leading-relaxed border-t border-white/5 pt-4">
-                        速度主要取决于您的路由器性能和网络环境。在 5GHz Wi-Fi 环境下，VoidWarp 通常可以达到 30MB/s - 100MB/s 的速度。由于我们使用 Rust
-                        编写底层并优化了缓冲区，通常比基于 HTTP 的传输工具更快。
-                    </div>
-                </details>
-
-                <details class="glass-card rounded-lg group">
-                    <summary class="flex justify-between items-center p-6 cursor-pointer list-none">
-                        <span class="font-medium text-lg">需要连接互联网吗？</span>
-                        <span class="transition group-open:rotate-180"><i
-                                class="fa-solid fa-chevron-down text-gray-500"></i></span>
-                    </summary>
-                    <div class="px-6 pb-6 text-gray-400 text-sm leading-relaxed border-t border-white/5 pt-4">
-                        完全不需要。VoidWarp 仅在局域网（LAN）内工作。您的数据从一台设备直接流向另一台设备，不经过任何外部服务器。这也意味着即使断网，只要路由器通电，依然可以使用。
-                    </div>
-                </details>
-
-                <details class="glass-card rounded-lg group">
-                    <summary class="flex justify-between items-center p-6 cursor-pointer list-none">
-                        <span class="font-medium text-lg">为什么我的设备互相找不到？</span>
-                        <span class="transition group-open:rotate-180"><i
-                                class="fa-solid fa-chevron-down text-gray-500"></i></span>
-                    </summary>
-                    <div class="px-6 pb-6 text-gray-400 text-sm leading-relaxed border-t border-white/5 pt-4">
-                        请确保两台设备连接到同一个 Wi-Fi 网络。如果在 Windows 上，请检查防火墙设置，确保允许 VoidWarp 进行专用网络通信。在某些公共 Wi-Fi（如学校、酒店）中，AP
-                        隔离功能可能会阻止设备发现。
-                    </div>
-                </details>
-
-                <details class="glass-card rounded-lg group">
-                    <summary class="flex justify-between items-center p-6 cursor-pointer list-none">
-                        <span class="font-medium text-lg">这个项目是开源的吗？</span>
-                        <span class="transition group-open:rotate-180"><i
-                                class="fa-solid fa-chevron-down text-gray-500"></i></span>
-                    </summary>
-                    <div class="px-6 pb-6 text-gray-400 text-sm leading-relaxed border-t border-white/5 pt-4">
-                        是的，VoidWarp 是 100% 开源的。您可以访问我们的 GitHub 仓库查看源代码、提交 Issue 或贡献代码。
-                    </div>
-                </details>
-            </div>
-        </div>
-    </section>
 
     <!-- Download Section -->
     <section id="download" class="py-32 relative">
@@ -786,7 +730,7 @@
                         <div class="flex gap-2 mb-6">
                             <span class="px-2 py-1 bg-white/5 rounded text-xs font-mono text-gray-400">APK</span>
                             <span
-                                class="px-2 py-1 bg-white/5 rounded text-xs font-mono text-gray-400 version-badge">v1.0.5</span>
+                                class="px-2 py-1 bg-white/5 rounded text-xs font-mono text-gray-400 version-badge">v1.0.0</span>
                         </div>
                         <ul class="text-left text-sm text-gray-400 space-y-3 mb-8 w-full px-4">
                             <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500 text-xs"></i>
@@ -842,6 +786,64 @@
             </div>
     </section>
 
+    <!-- FAQ Section -->
+    <section id="faq" class="py-24 relative bg-white/[0.02]">
+        <div class="max-w-3xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl font-bold mb-4">常见问题</h2>
+                <p class="text-gray-400">安装和使用过程中的常见疑问</p>
+            </div>
+
+            <div class="space-y-4">
+                <details class="glass-card rounded-lg group">
+                    <summary class="flex justify-between items-center p-6 cursor-pointer list-none">
+                        <span class="font-medium text-lg">传输速度有多快？</span>
+                        <span class="transition group-open:rotate-180"><i
+                                class="fa-solid fa-chevron-down text-gray-500"></i></span>
+                    </summary>
+                    <div class="px-6 pb-6 text-gray-400 text-sm leading-relaxed border-t border-white/5 pt-4">
+                        速度主要取决于您的路由器性能和网络环境。在 5GHz Wi-Fi 环境下，VoidWarp 通常可以达到 30MB/s - 100MB/s 的速度。由于我们使用 Rust
+                        编写底层并优化了缓冲区，通常比基于 HTTP 的传输工具更快。
+                    </div>
+                </details>
+
+                <details class="glass-card rounded-lg group">
+                    <summary class="flex justify-between items-center p-6 cursor-pointer list-none">
+                        <span class="font-medium text-lg">需要连接互联网吗？</span>
+                        <span class="transition group-open:rotate-180"><i
+                                class="fa-solid fa-chevron-down text-gray-500"></i></span>
+                    </summary>
+                    <div class="px-6 pb-6 text-gray-400 text-sm leading-relaxed border-t border-white/5 pt-4">
+                        完全不需要。VoidWarp 仅在局域网（LAN）内工作。您的数据从一台设备直接流向另一台设备，不经过任何外部服务器。这也意味着即使断网，只要路由器通电，依然可以使用。
+                    </div>
+                </details>
+
+                <details class="glass-card rounded-lg group">
+                    <summary class="flex justify-between items-center p-6 cursor-pointer list-none">
+                        <span class="font-medium text-lg">为什么我的设备互相找不到？</span>
+                        <span class="transition group-open:rotate-180"><i
+                                class="fa-solid fa-chevron-down text-gray-500"></i></span>
+                    </summary>
+                    <div class="px-6 pb-6 text-gray-400 text-sm leading-relaxed border-t border-white/5 pt-4">
+                        请确保两台设备连接到同一个 Wi-Fi 网络。如果在 Windows 上，请检查防火墙设置，确保允许 VoidWarp 进行专用网络通信。在某些公共 Wi-Fi（如学校、酒店）中，AP
+                        隔离功能可能会阻止设备发现。
+                    </div>
+                </details>
+
+                <details class="glass-card rounded-lg group">
+                    <summary class="flex justify-between items-center p-6 cursor-pointer list-none">
+                        <span class="font-medium text-lg">这个项目是开源的吗？</span>
+                        <span class="transition group-open:rotate-180"><i
+                                class="fa-solid fa-chevron-down text-gray-500"></i></span>
+                    </summary>
+                    <div class="px-6 pb-6 text-gray-400 text-sm leading-relaxed border-t border-white/5 pt-4">
+                        是的，VoidWarp 是 100% 开源的。您可以访问我们的 GitHub 仓库查看源代码、提交 Issue 或贡献代码。
+                    </div>
+                </details>
+            </div>
+        </div>
+    </section>
+
     <!-- Footer -->
     <footer class="border-t border-white/5 bg-black py-16">
         <div class="max-w-7xl mx-auto px-6">
@@ -869,12 +871,18 @@
                 </div>
 
                 <div>
-                    <h4 class="text-white font-bold mb-4">法律</h4>
+                    <h4 class="text-white font-bold mb-4">联系方式</h4>
                     <ul class="space-y-2 text-sm text-gray-500">
-                        <li><a href="#" class="hover:text-white transition-colors">隐私政策</a></li>
+                        <li><a href="mailto:fing2024@outlook.com"
+                                class="hover:text-accent-cyan transition-colors flex items-center gap-2">
+                                <i class="fa-solid fa-envelope"></i> fing2024@outlook.com
+                            </a></li>
+                        <li><a href="https://github.com/xustalis/voidwarp/issues" target="_blank"
+                                class="hover:text-accent-cyan transition-colors flex items-center gap-2">
+                                <i class="fa-brands fa-github"></i> 提交问题
+                            </a></li>
                         <li><a href="https://github.com/xustalis/voidwarp/blob/main/LICENSE" target="_blank"
                                 class="hover:text-white transition-colors">开源协议 (GPLv3)</a></li>
-                        <li><a href="#" class="hover:text-white transition-colors">免责声明</a></li>
                     </ul>
                 </div>
             </div>

@@ -11,9 +11,9 @@
 
 | 能力 | 说明 |
 |------|------|
-| 🚀 **极速传输** | 基于 UDP 的自定义协议 (VWTP)，支持多文件顺序传输、拥塞控制与智能重传 |
-| 🔒 **端到端加密** | ECDH 密钥交换 + AES-256-GCM 加密，传输内容全程密文 |
-| 🔍 **自动发现** | mDNS + 多网卡 UDP 广播，支持手动添加 (带 IP 校验) |
+| 🚀 **极速传输** | 基于 TCP 的可靠传输协议，支持多文件顺序传输、分块读写与校验 |
+| 🔒 **端到端加密** | 握手协商 + 加密通道，传输内容全程密文（规划中：ECDH + AES-256-GCM） |
+| 🔍 **自动发现** | mDNS + UDP 广播双重机制，支持手动添加（带 IP 校验） |
 | 📝 **接收记录** | 完整的历史记录管理，支持记录删除与物理文件联动删除 |
 | 📂 **智能存储** | 默认保存至 `Downloads/VoidWarp`，Android 自动触发媒体扫描 |
 | 🎨 **一致体验** | 跨平台统一的 Dark Cyberpunk 主题与三阶段交互流程 |
@@ -77,39 +77,31 @@ VoidWarp 采用 **Hybrid Core** 架构模式，将核心逻辑与平台 UI 解�
 
 | 模块 | 职责 |
 |------|------|
-| **Discovery** | mDNS 服务发现 (`_voidwarp._udp.local`)，多网卡广播，手动配对 |
-| **Transport** | VWTP 可靠 UDP 传输协议，拥塞控制，选择性重传 (SACK) |
-| **Security** | X25519 密钥交换，AES-256-GCM 加密，前向保密 |
+| **Discovery** | mDNS 服务发现 (`_voidwarp._udp.local`)，UDP 广播支持，手动配对 |
+| **Transport** | TCP 可靠传输，分块读写，选择性确认与重传 |
+| **Security** | 握手协商，加密通道（规划中：X25519 密钥交换，AES-256-GCM 加密） |
 | **Session** | 状态机驱动：`Idle → Handshaking → Transferring → Verifying → Completed` |
 | **File I/O** | 分块读写，MD5 校验，断点续传支持 |
 | **Protocol** | 消息编解码，文件 Offer/Accept 协议 |
 
-### VWTP 传输协议
+### 传输协议
 
-VoidWarp Transport Protocol 是专为局域网高速传输设计的可靠 UDP 协议：
+VoidWarp 当前使用 **TCP** 作为传输层协议，确保数据完整性和可靠性：
 
-```
-┌─────────────────────────────────────────────┐
-│              VWTP Packet Header             │
-├──────┬──────────────┬───────────────────────┤
-│ Flag │ Connection ID│    Packet Number      │
-│ 1B   │     8B       │         8B            │
-└──────┴──────────────┴───────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────────────┐
-│              Encrypted Payload              │
-│         (AES-256-GCM Encrypted)             │
-└─────────────────────────────────────────────┘
-```
+**传输特性**：
+- **可靠传输**：利用 TCP 的顺序传输和重传机制
+- **分块传输**：大文件分块读写，支持进度回报
+- **校验机制**：MD5 校验确保文件完整性
+- **断点续传**：支持传输中断后继续（规划中）
 
-**协议特性**：
-- **流复用**：Stream 0 用于控制消息，Stream 1+ 用于文件数据
-- **选择性确认**：SACK 机制减少不必要的重传
-- **拥塞控制**：类 Cubic 算法自适应带宽
-- **密钥轮换**：每 1GB 数据或 1 小时自动更新密钥
+**未来规划**：
+- 自定义 UDP 协议 (VWTP) 实现更高性能
+- 拥塞控制与自适应带宽
+- 选择性确认 (SACK) 减少重传
 
-### 安全机制
+### 安全机制 (规划中)
+
+当前版本使用基础握手协商和加密通道。完整的端到端加密将在未来版本实现：
 
 ```mermaid
 sequenceDiagram
@@ -211,7 +203,7 @@ cd platforms/windows/installer
 
 ---
 
-## 📜 许可证
+## 📜 许可证 (License)
 
 Copyright © 2024-2026 Xustalis.
 
@@ -226,9 +218,15 @@ Copyright © 2024-2026 Xustalis.
 
 ---
 
-## 🔗 相关文档
+## 🏗️ 架构图
 
-- [架构设计](docs/architecture/ARCHITECTURE.md)
-- [VWTP 协议规范](docs/protocol/PROTOCOL_SPEC.md)
-- [安全规范](docs/protocol/SECURITY.md)
-- [消息格式](docs/protocol/MESSAGE_FORMAT.md)
+```mermaid
+graph TD
+    A["UI Layer (WPF/Compose/SwiftUI)"] <-->|FFI / JNI| B["VoidWarp Core (Rust)"]
+    B --> C["Discovery (mDNS)"]
+    B --> D["Transport (UDP/VWTP)"]
+    B --> E["Security (Ring/AES)"]
+    B --> F["File I/O"]
+```
+
+详细协议文档请参阅 [docs/protocol/PROTOCOL_SPEC.md](docs/protocol/PROTOCOL_SPEC.md)。
