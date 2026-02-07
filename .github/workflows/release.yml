@@ -1,0 +1,236 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ============================================
+  # Windows Build (Self-Contained + Installer)
+  # ============================================
+  build-windows:
+    name: Build Windows Client
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # --- 1. Dependencies ---
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+          
+      # --- 2. Build Core ---
+      - name: Build Rust Core DLL
+        working-directory: core
+        run: cargo build --release
+
+      # --- 3. Publish Self-Contained App ---
+      - name: Publish Self-Contained App
+        working-directory: platforms/windows
+        run: dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false
+
+      # --- 4. Package for Installer ---
+      - name: Prepare Release Package
+        shell: pwsh
+        run: |
+          $publishDir = "platforms/windows/bin/Release/net8.0-windows/win-x64/publish"
+          $packageDir = "publish/VoidWarp-Windows" # Matches Inno Setup expectation
+          
+          New-Item -ItemType Directory -Force -Path $packageDir
+          
+          # Copy app files
+          Copy-Item -Path "$publishDir/*" -Destination $packageDir -Recurse
+          
+          # Copy Rust DLL
+          Copy-Item -Path "target/release/voidwarp_core.dll" -Destination $packageDir -Force
+          
+          # Copy scripts/license
+          Copy-Item -Path "platforms/windows/setup_firewall.bat" -Destination $packageDir
+          Copy-Item -Path "LICENSE" -Destination $packageDir -ErrorAction SilentlyContinue
+          
+          # Create README.txt for installer
+          "VoidWarp Windows Client - Self-Contained`r`nSee website for details." | Out-File "$packageDir/README.txt" -Encoding utf8
+
+      # --- 5. Build Installer with Inno Setup ---
+      - name: Install Inno Setup
+        run: choco install innosetup
+
+      - name: Build Installer
+        shell: pwsh
+        run: |
+          # Add Inno Setup to PATH (Choco install location)
+          $env:Path += ";C:\Program Files (x86)\Inno Setup 6"
+          
+          # Run ISCC
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" platforms/windows/installer/VoidWarp.iss
+          
+      # --- 6. Create Portable ZIP ---
+      - name: Create Portable ZIP
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}"
+          $packageDir = "publish/VoidWarp-Windows"
+          Compress-Archive -Path "$packageDir/*" -DestinationPath "VoidWarp-Windows-x64-$version.zip" -Force
+          
+          # Rename Installer for upload
+          # Inno Setup output is configured as: publish/output/VoidWarp-Windows-x64-v{AppVersion}-Setup.exe
+          # Depending on Iss script version def, it might not match tag exactly. 
+          # Let's find the exe in publish/output
+          $installer = Get-ChildItem "publish/output/*.exe" | Select-Object -First 1
+          if ($installer) {
+             Copy-Item $installer.FullName -Destination "VoidWarp-Windows-x64-$version-Setup.exe"
+          }
+
+      # --- 7. Upload Artifacts ---
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: |
+            VoidWarp-Windows-x64-*.zip
+            VoidWarp-Windows-x64-*-Setup.exe
+
+  # ============================================
+  # Android Build (Release APK)
+  # ============================================
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;26.1.10909125"
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/26.1.10909125" >> $GITHUB_ENV
+
+      - name: Configure Android Linkers
+        run: |
+          echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang" >> $GITHUB_ENV
+          echo "CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi26-clang" >> $GITHUB_ENV
+          echo "CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android26-clang" >> $GITHUB_ENV
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+
+      - name: Build Rust Library for Android
+        working-directory: core
+        run: cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 -o ../platforms/android/app/src/main/jniLibs build --release
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build Release APK
+        working-directory: platforms/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease
+
+      - name: Rename APK
+        run: |
+          version="${{ github.ref_name }}"
+          # Find the release APK (could be signed or unsigned depending on key config)
+          find platforms/android/app/build/outputs/apk/release -name "*.apk" -exec mv {} "VoidWarp-Android-$version.apk" \;
+
+      - name: Upload Android Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release
+          path: VoidWarp-Android-*.apk
+
+  # ============================================
+  # Create GitHub Release
+  # ============================================
+  release:
+    name: Create Release
+    needs: [build-windows, build-android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Windows Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-release
+          path: artifacts/
+
+      - name: Download Android Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: android-release
+          path: artifacts/
+
+      - name: List Artifacts
+        run: ls -la artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: VoidWarp ${{ github.ref_name }}
+          body: |
+            ## VoidWarp ${{ github.ref_name }}
+            
+            ### Downloads
+            
+            | Platform | File | Type |
+            |----------|------|------|
+            | **Windows** | `VoidWarp-Windows-x64-${{ github.ref_name }}-Setup.exe` | 📦 Installer (Recommended) |
+            | **Windows** | `VoidWarp-Windows-x64-${{ github.ref_name }}.zip` | 📁 Portable ZIP |
+            | **Android** | `VoidWarp-Android-${{ github.ref_name }}.apk` | 📱 APK |
+            
+            ### What's New
+            - See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+          files: |
+            artifacts/VoidWarp-Windows-x64-*.zip
+            artifacts/VoidWarp-Windows-x64-*.exe
+            artifacts/VoidWarp-Android-*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
