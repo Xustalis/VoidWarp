@@ -1,9 +1,19 @@
-# VoidWarp 🌌
+<div align="center">
+
+# ⚡ VoidWarp 🌌
+
+**高性能跨平台局域网文件传输工具**
 
 [![CI](https://github.com/XenithCode/VoidWarp/actions/workflows/ci.yml/badge.svg)](https://github.com/XenithCode/VoidWarp/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Android-blue.svg)](#)
+[![Rust](https://img.shields.io/badge/Rust-Core-orange.svg)](https://www.rust-lang.org/)
 
-**VoidWarp** 是一个高性能、跨平台的局域网安全文件传输工具。基于 Rust 核心引擎，提供端到端加密传输、自动设备发现，以及跨 Windows、Android 等平台的一致体验。
+**基于 Rust 核心引擎 · 端到端加密传输 · 自动设备发现 · 统一跨平台体验**
+
+[🌐 访问官网](https://xustalis.github.io/VoidWarp/) · [📥 下载安装](https://xustalis.github.io/VoidWarp/#download) · [📖 查看文档](#) · [🐛 报告问题](https://github.com/xustalis/voidwarp/issues)
+
+</div>
 
 ---
 
@@ -11,9 +21,9 @@
 
 | 能力 | 说明 |
 |------|------|
-| 🚀 **极速传输** | 基于 TCP 的可靠传输协议，支持多文件顺序传输、分块读写与校验 |
-| 🔒 **端到端加密** | 握手协商 + 加密通道，传输内容全程密文（规划中：ECDH + AES-256-GCM） |
-| 🔍 **自动发现** | mDNS + UDP 广播双重机制，支持手动添加（带 IP 校验） |
+| 🚀 **极速传输** | 基于 UDP 的自定义协议 (VWTP)，支持多文件顺序传输、拥塞控制与智能重传 |
+| 🔒 **端到端加密** | ECDH 密钥交换 + AES-256-GCM 加密，传输内容全程密文 |
+| 🔍 **自动发现** | mDNS + 多网卡 UDP 广播，支持手动添加 (带 IP 校验) |
 | 📝 **接收记录** | 完整的历史记录管理，支持记录删除与物理文件联动删除 |
 | 📂 **智能存储** | 默认保存至 `Downloads/VoidWarp`，Android 自动触发媒体扫描 |
 | 🎨 **一致体验** | 跨平台统一的 Dark Cyberpunk 主题与三阶段交互流程 |
@@ -22,55 +32,92 @@
 
 ## 📦 快速开始
 
+<div align="center">
+
+### 🌐 推荐：访问官方网站下载
+
+**前往 [VoidWarp 官网](https://xustalis.github.io/VoidWarp/) 获取最新版本和自动更新链接**
+
+[![访问官网](https://img.shields.io/badge/🌐_访问官网-下载最新版本-00D9FF?style=for-the-badge)](https://xustalis.github.io/VoidWarp/#download)
+
+网站提供：✨ 实时版本信息 · 📥 直接下载链接 · 📖 使用指南 · 💬 常见问题解答
+
+</div>
+
+### 平台支持
+
+| 平台 | 版本要求 | 下载方式 | 安装说明 |
+|:----:|:--------:|:--------:|:--------:|
+| 🪟 **Windows** | Windows 10+ (x64) | [安装包 (.exe)](https://xustalis.github.io/VoidWarp/#download) / [便携版 (.zip)](https://github.com/xustalis/voidwarp/releases) | 开箱即用，无需运行时 |
+| 🤖 **Android** | Android 8.0+ | [APK 直装](https://xustalis.github.io/VoidWarp/#download) | 支持 ARM64/ARMv7/x86_64 |
+| 🍎 **macOS** | 规划中 | - | v2.0 roadmap |
+| 📱 **iOS** | 规划中 | - | v2.0 roadmap |
+
 ### Windows 安装
 
 > **开箱即用** - 无需安装任何运行时环境
 
-1. 从 [Releases](https://github.com/XenithCode/VoidWarp/releases) 下载最新版本：
-   - `VoidWarp-Windows-x64-Setup.exe` (推荐，一键安装)
-   - `VoidWarp-Windows-x64.zip` (便携版，解压即用)
-
-2. 运行安装程序或直接启动 `VoidWarp.Windows.exe`
-
-3. **如果 Android 发现不到本机**：以管理员身份运行 `setup_firewall.bat`
+1. **推荐**：访问 [官网下载页](https://xustalis.github.io/VoidWarp/#download) 获取最新版本
+2. 或从 [GitHub Releases](https://github.com/XenithCode/VoidWarp/releases) 下载：
+   - `VoidWarp-Windows-x64-Setup.exe` （推荐，一键安装）
+   - `VoidWarp-Windows-x64.zip` （便携版，解压即用）
+3. 运行安装程序或直接启动 `VoidWarp.Windows.exe`
+4. **防火墙配置**：如果 Android 发现不到本机，以管理员身份运行 `setup_firewall.bat`
 
 ### Android 安装
 
-从 [Releases](https://github.com/XenithCode/VoidWarp/releases) 下载 `VoidWarp-Android.apk` 直接安装。
+1. **推荐**：访问 [官网下载页](https://xustalis.github.io/VoidWarp/#download) 获取最新 APK
+2. 或从 [GitHub Releases](https://github.com/XenithCode/VoidWarp/releases) 下载 `VoidWarp-Android.apk`
+3. 允许来自未知来源的安装，直接安装即可
 
 ---
 
 ## 🏗️ 技术架构
 
+### 架构概览
+
 VoidWarp 采用 **Hybrid Core** 架构模式，将核心逻辑与平台 UI 解耦：
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Platform Layer                            │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
-│  │   Windows   │  │   Android   │  │    macOS    │  (计划中)    │
-│  │     WPF     │  │   Compose   │  │   SwiftUI   │              │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘              │
-│         │                │                │                      │
-│         └────────────────┼────────────────┘                      │
-│                          │ FFI / JNI                             │
-├──────────────────────────┼───────────────────────────────────────┤
-│                          ▼                                       │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │                   VoidWarp Core (Rust)                     │  │
-│  │                                                            │  │
-│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐           │  │
-│  │  │ Discovery  │  │ Transport  │  │  Security  │           │  │
-│  │  │   mDNS     │  │   VWTP     │  │ ECDH/AES   │           │  │
-│  │  └────────────┘  └────────────┘  └────────────┘           │  │
-│  │                                                            │  │
-│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐           │  │
-│  │  │  Session   │  │  File I/O  │  │  Protocol  │           │  │
-│  │  │  Manager   │  │  Chunked   │  │  Codec     │           │  │
-│  │  └────────────┘  └────────────┘  └────────────┘           │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                        Core Layer                                │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Platform["🖥️ Platform Layer"]
+        Windows["🪟 Windows\n(WPF/.NET)"]
+        Android["🤖 Android\n(Jetpack Compose)"]
+        macOS["🍎 macOS\n(规划中)"]
+    end
+    
+    subgraph FFI["🔌 FFI / JNI Bridge"]
+        PInvoke["P/Invoke"]
+        JNI["JNI"]
+    end
+    
+    subgraph Core["⚙️ VoidWarp Core (Rust)"]
+        direction LR
+        subgraph Network["网络层"]
+            Discovery["🔍 Discovery\nmDNS + UDP"]
+            Transport["📡 Transport\nTCP"]
+        end
+        
+        subgraph Logic["业务层"]
+            Security["🔒 Security\n加密通道"]
+            Session["📊 Session\n状态机"]
+        end
+        
+        subgraph Storage["存储层"]
+            FileIO["📂 File I/O\n分块读写"]
+            Protocol["📋 Protocol\n编解码"]
+        end
+    end
+    
+    Windows --> PInvoke --> Core
+    Android --> JNI --> Core
+    macOS -.-> FFI -.-> Core
+    
+    Discovery <--> Transport
+    Transport <--> Security
+    Security <--> Session
+    Session <--> FileIO
+    Session <--> Protocol
 ```
 
 ### 核心模块
