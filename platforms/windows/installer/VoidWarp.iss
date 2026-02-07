@@ -1,8 +1,8 @@
-; VoidWarp Windows Installer - Advanced Inno Setup Script
+; VoidWarp Windows Installer - Self-Contained Edition
 ; Requires Inno Setup 6+
 ; 
 ; Build Instructions:
-; 1. Generate Publish Artifacts: Use publish_windows.bat
+; 1. Generate Publish Artifacts: Run publish_windows.bat from project root
 ; 2. Ensure assets exist: platforms\windows\Assets\app.ico
 ; 3. Compile this script with ISCC
 
@@ -15,8 +15,8 @@
 #define MyAssetsDir "..\Assets"
 
 [Setup]
-; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
-AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}}
+; NOTE: The value of AppId uniquely identifies this application.
+AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
@@ -37,22 +37,18 @@ WindowVisible=yes
 ; Modern UI and Styling
 WizardStyle=modern
 WizardImageFile=
-; Use the icon as the small wizard image if no BMP provided
 WizardSmallImageFile=
 
 ; Compression & Output
 OutputDir={#MyPublishDir}\..\output
-OutputBaseFilename=VoidWarp-Windows-x64-Setup
+OutputBaseFilename=VoidWarp-Windows-x64-v{#MyAppVersion}-Setup
 Compression=lzma2/ultra64
 SolidCompression=yes
 
 ; Permissions & Architectures
 PrivilegesRequired=admin
-ArchitecturesAllowed=x64
-ArchitecturesInstallIn64BitMode=x64
-
-; Digital Signature (Configure locally in IDE or CI)
-; SignTool=signtool sign /a /n $qMy Certificate$q /t http://timestamp.digicert.com /fd sha256 $f
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 
 ; License
 LicenseFile={#MyPublishDir}\LICENSE
@@ -65,15 +61,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; Main Executable
-Source: "{#MyPublishDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-; Native DLLs and Dependencies
-Source: "{#MyPublishDir}\*.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyPublishDir}\*.json"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyPublishDir}\setup_firewall.bat"; DestDir: "{app}"; Flags: ignoreversion
-; Docs
-Source: "{#MyPublishDir}\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyPublishDir}\README.txt"; DestDir: "{app}"; Flags: ignoreversion isreadme
+; Self-Contained Package: All files including .NET Runtime
+Source: "{#MyPublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
@@ -89,83 +78,11 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}
 [UninstallDelete]
 Type: filesandordirs; Name: "{localappdata}\VoidWarp"
 
-[Code]
-var
-  DownloadPage: TDownloadWizardPage;
-  vcRedistPath: string;
+[Messages]
+WelcomeLabel2=本安装程序将在您的计算机上安装 [name]。%n%n此版本为自包含版本，无需安装 .NET Runtime 或其他依赖。%n%n点击"下一步"继续安装。
 
+[Code]
 function InitializeSetup(): Boolean;
 begin
-  // Initialize Global Vars
   Result := True;
-  vcRedistPath := ExpandConstant('{tmp}\vc_redist.x64.exe');
-end;
-
-function IsVCRedistInstalled: Boolean;
-var
-  regKey: string;
-  installed: Cardinal;
-begin
-  // Check for Visual C++ 2015-2022 Redistributable (x64)
-  // Registry key: HKLM\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64 -> Installed = 1
-  regKey := 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64';
-  if RegQueryDWordValue(HKLM, regKey, 'Installed', installed) then
-  begin
-    Result := (installed = 1);
-  end
-  else
-  begin
-    Result := False;
-  end;
-end;
-
-procedure InitializeWizard;
-begin
-  // Add Download Page for VC++ Redistributable
-  DownloadPage := CreateDownloadPage(SetupMessage(msgWizardPreparing), SetupMessage(msgPreparingDesc), nil);
-end;
-
-function NextButtonClick(CurPageID: Integer): Boolean;
-begin
-  Result := True;
-  if (CurPageID = wpReady) and (not IsVCRedistInstalled) then
-  begin
-    DownloadPage.Clear;
-    DownloadPage.Add('https://aka.ms/vs/17/release/vc_redist.x64.exe', 'vc_redist.x64.exe', '');
-    DownloadPage.Show;
-    try
-      try
-        DownloadPage.Download; // Check errors
-        Result := True;
-      except
-        SuppressibleMsgBox(AddPeriod(GetExceptionMessage), mbCriticalError, MB_OK, IDOK);
-        Result := False;
-      end;
-    finally
-      DownloadPage.Hide;
-    end;
-  end;
-end;
-
-procedure CurStepChanged(CurStep: TSetupStep);
-var
-  ResultCode: Integer;
-begin
-  if (CurStep = ssPostInstall) and (not IsVCRedistInstalled) then
-  begin
-    // Install VC++ Redistributable
-    if FileExists(vcRedistPath) then
-    begin
-      WizardForm.StatusLabel.Caption := 'Installing Microsoft Visual C++ Redistributable...';
-      WizardForm.ProgressGauge.Style := npbstMarquee;
-      try
-        if not Exec(vcRedistPath, '/install /quiet /norestart', '', SW_SHOW, ewWaitUntilTerminated, ResultCode) then
-        begin
-          MsgBox('Visual C++ Redistributable installation failed. Code: ' + IntToStr(ResultCode), mbError, MB_OK);
-        end;
-      finally
-        WizardForm.ProgressGauge.Style := npbstNormal;
-      end;
-    end;
-  end;
 end;
