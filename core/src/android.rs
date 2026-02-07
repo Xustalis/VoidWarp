@@ -360,8 +360,9 @@ pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpRece
     let sender_addr = from_c_string(&mut env, pending.sender_addr);
     let file_name = from_c_string(&mut env, pending.file_name);
 
-    // Save file_size before freeing
+    // Save file_size and is_folder before freeing
     let file_size = pending.file_size;
+    let is_folder = pending.is_folder;
 
     // Free the C strings
     ffi::voidwarp_free_pending_transfer(pending);
@@ -369,12 +370,13 @@ pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpRece
     let obj = env
         .new_object(
             &class,
-            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)V",
+            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JZ)V",
             &[
                 JValue::Object(&JObject::from_raw(sender_name)),
                 JValue::Object(&JObject::from_raw(sender_addr)),
                 JValue::Object(&JObject::from_raw(file_name)),
                 JValue::Long(file_size as i64),
+                JValue::Bool(if is_folder { 1 } else { 0 }),
             ],
         )
         .expect("Failed to create PendingTransfer object");
@@ -545,6 +547,23 @@ pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpTcpS
     }
     let sender_ref = &*(sender as *const TcpFileSender);
     sender_ref.progress()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpTcpSenderIsFolder(
+    _env: JNIEnv,
+    _class: JClass,
+    sender: jlong,
+) -> jboolean {
+    if sender == 0 {
+        return 0;
+    }
+    let sender_ref = &*(sender as *const TcpFileSender);
+    if sender_ref.transfer_type == crate::protocol::TransferType::Folder {
+        1
+    } else {
+        0
+    }
 }
 
 #[no_mangle]

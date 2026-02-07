@@ -37,7 +37,8 @@ data class PendingTransfer(
     val senderName: String,
     val senderAddress: String,
     val fileName: String,
-    val fileSize: Long
+    val fileSize: Long,
+    val isFolder: Boolean = false
 ) {
     val formattedSize: String
         get() = when {
@@ -286,7 +287,8 @@ class ReceiveManager {
                                 senderName = pending.senderName,
                                 senderAddress = pending.senderAddress,
                                 fileName = pending.fileName,
-                                fileSize = pending.fileSize
+                                fileSize = pending.fileSize,
+                                isFolder = pending.isFolder
                             )
                         }
                     }

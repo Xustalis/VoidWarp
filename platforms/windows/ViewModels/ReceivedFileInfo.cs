@@ -18,7 +18,10 @@ namespace VoidWarp.Windows.ViewModels
         public string SenderName { get; set; } = string.Empty;
         public DateTime ReceivedTime { get; set; } = DateTime.Now;
         public TransferStatus Status { get; set; } = TransferStatus.InProgress;
+        public bool IsFolder { get; set; }
 
-        public bool FileExists => System.IO.File.Exists(FilePath);
+        public bool FileExists => IsFolder 
+            ? System.IO.Directory.Exists(FilePath) 
+            : System.IO.File.Exists(FilePath);
     }
 }

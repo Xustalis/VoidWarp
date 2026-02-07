@@ -354,6 +354,7 @@ namespace VoidWarp.Windows.ViewModels
         public ICommand SelectFileCommand { get; } // Legacy - adds to queue
         public ICommand PickFileCommand { get; } // Add file(s) to queue
         public ICommand AddFileCommand { get; } // Add file(s) to queue
+        public ICommand AddFolderCommand { get; } // Add folder(s) to queue
         public ICommand RemoveFileCommand { get; } // Remove file from queue
         public ICommand TestConnectionCommand { get; }
         public ICommand OpenDownloadsCommand { get; }
@@ -395,6 +396,7 @@ namespace VoidWarp.Windows.ViewModels
             SelectFileCommand = new RelayCommand(_ => AddFileToPendingQueue());
             PickFileCommand = new RelayCommand(_ => AddFileToPendingQueue());
             AddFileCommand = new RelayCommand(_ => AddFileToPendingQueue());
+            AddFolderCommand = new RelayCommand(_ => AddFolderToPendingQueue());
             RemoveFileCommand = new RelayCommand(file => RemoveFileFromQueue(file as PendingFileInfo));
             ClearLogsCommand = new RelayCommand(_ => ClearLogs());
             TestConnectionCommand = new RelayCommand(peer => TestConnection(peer as PeerItem));
@@ -634,6 +636,77 @@ namespace VoidWarp.Windows.ViewModels
                     if (dialog.FileNames.Length > 0)
                     {
                         StatusMessage = $"{PendingFiles.Count} 个文件待发送";
+                    }
+                });
+            }
+        }
+
+        /// <summary>
+        /// Add a folder to the pending files queue.
+        /// </summary>
+        private void AddFolderToPendingQueue()
+        {
+            var dialog = new OpenFolderDialog
+            {
+                Title = "Select Folder to Send",
+                Multiselect = true
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                // Process in background to avoid freezing UI on large folders
+                Task.Run(() =>
+                {
+                    foreach (var folderPath in dialog.FolderNames)
+                    {
+                        try
+                        {
+                            var dirInfo = new DirectoryInfo(folderPath);
+                            
+                            bool exists = false;
+                            InvokeOnUI(() => { exists = PendingFiles.Any(f => f.FilePath == folderPath); });
+                            
+                            if (exists)
+                            {
+                                InvokeOnUI(() => AddLog($"Folder already in queue: {dirInfo.Name}"));
+                                continue;
+                            }
+
+                            // Calculate total size (heavy operation)
+                            long totalSize = 0;
+                            try
+                            {
+                                totalSize = dirInfo.EnumerateFiles("*", SearchOption.AllDirectories).Sum(fi => fi.Length);
+                            }
+                            catch (Exception ex)
+                            {
+                                InvokeOnUI(() => AddLog($"Error calculating size: {ex.Message}"));
+                                continue;
+                            }
+
+                            InvokeOnUI(() =>
+                            {
+                                if (PendingFiles.Any(f => f.FilePath == folderPath)) return;
+
+                                var pendingFile = new PendingFileInfo
+                                {
+                                    FilePath = folderPath,
+                                    FileSize = totalSize,
+                                    IsFolder = true
+                                };
+
+                                PendingFiles.Add(pendingFile);
+                                AddLog($"Added folder: {dirInfo.Name} ({FormatSize(totalSize)})");
+                                
+                                OnPropertyChanged(nameof(HasPendingFiles));
+                                OnPropertyChanged(nameof(CanSend));
+                                StatusMessage = $"{PendingFiles.Count} items queued";
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            InvokeOnUI(() => AddLog($"Cannot add folder: {Path.GetFileName(folderPath)} - {ex.Message}"));
+                        }
                     }
                 });
             }
@@ -957,7 +1030,8 @@ namespace VoidWarp.Windows.ViewModels
                 _pendingTransferInfo = e;
                 OnPropertyChanged(nameof(IsTransferring));
                 
-                AddLog($"收到请求: {e.FileName} ({e.FormattedSize}) 来自 {e.SenderName}");
+                string typeLabel = e.IsFolder ? "文件夹" : "文件";
+                AddLog($"收到请求: {e.FileName} ({e.FormattedSize}) [{typeLabel}] 来自 {e.SenderName}");
 
                 // Auto-accept if this peer was already approved in this session
                 if (_acceptedPeers.Contains(e.SenderAddress) || _acceptedPeers.Contains(e.SenderName))
@@ -966,14 +1040,17 @@ namespace VoidWarp.Windows.ViewModels
                     return;
                 }
 
+                string typeStr = e.IsFolder ? "文件夹" : "文件";
+                string sizeLabel = e.IsFolder ? "总大小" : "大小";
+
                 var result = MessageBox.Show(
-                    $"收到文件传输请求\n\n" +
+                    $"收到{typeStr}传输请求\n\n" +
                     $"发送者: {e.SenderName}\n" +
                     $"地址: {e.SenderAddress}\n" +
-                    $"文件: {e.FileName}\n" +
-                    $"大小: {e.FormattedSize}\n\n" +
+                    $"{typeStr}: {e.FileName}\n" +
+                    $"{sizeLabel}: {e.FormattedSize}\n\n" +
                     "极力推荐仅接收信任设备的文件。是否接收？",
-                    "文件传输请求",
+                    $"{typeStr}传输请求",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Question);
 

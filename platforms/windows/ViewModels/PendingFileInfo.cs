@@ -10,6 +10,7 @@ namespace VoidWarp.Windows.ViewModels
         public string FilePath { get; set; } = string.Empty;
         public string FileName => Path.GetFileName(FilePath);
         public long FileSize { get; set; }
+        public bool IsFolder { get; set; }
         
         public string FormattedSize
         {

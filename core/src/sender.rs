@@ -51,7 +51,7 @@ pub struct TcpFileSender {
     bytes_sent: Arc<AtomicU64>,
     cancelled: Arc<AtomicBool>,
     resume_from_chunk: u64,
-    transfer_type: TransferType,
+    pub transfer_type: TransferType,
     manifest_bytes: Vec<u8>,
     files_to_send: Vec<PathBuf>,
 }

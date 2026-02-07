@@ -555,6 +555,7 @@ pub struct FfiPendingTransfer {
     pub file_name: *mut c_char,
     pub file_size: u64,
     pub is_valid: bool,
+    pub is_folder: bool,
 }
 
 /// Create a file receiver server
@@ -627,6 +628,7 @@ pub extern "C" fn voidwarp_receiver_get_pending(
         file_name: ptr::null_mut(),
         file_size: 0,
         is_valid: false,
+        is_folder: false,
     };
 
     if receiver.is_null() {
@@ -646,6 +648,7 @@ pub extern "C" fn voidwarp_receiver_get_pending(
                 .unwrap_or(ptr::null_mut()),
             file_size: transfer.file_size,
             is_valid: true,
+            is_folder: transfer.transfer_type == crate::protocol::TransferType::Folder,
         },
         None => empty,
     }
@@ -765,6 +768,15 @@ pub extern "C" fn voidwarp_tcp_sender_set_chunk_size(sender: *mut FfiTcpSender, 
             (*sender).sender.set_chunk_size(size);
         }
     }
+}
+
+/// Check if sender is transferring a folder
+#[no_mangle]
+pub extern "C" fn voidwarp_tcp_sender_is_folder(sender: *const FfiTcpSender) -> bool {
+    if sender.is_null() {
+        return false;
+    }
+    unsafe { (*sender).sender.transfer_type == crate::protocol::TransferType::Folder }
 }
 
 /// Start TCP transfer to the target address

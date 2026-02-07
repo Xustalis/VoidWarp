@@ -1,7 +1,7 @@
 # VoidWarp 🌌
 
 [![CI](https://github.com/XenithCode/VoidWarp/actions/workflows/ci.yml/badge.svg)](https://github.com/XenithCode/VoidWarp/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/XenithCode/VoidWarp?label=Release&color=success)](https://github.com/XenithCode/VoidWarp/releases/latest)
+<!-- [![Release](https://img.shields.io/github/v/release/XenithCode/VoidWarp?label=Release&color=success)](https://github.com/XenithCode/VoidWarp/releases/latest) -->
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
 **VoidWarp** 是一个高性能、跨平台的局域网安全文件传输工具。旨在提供广泛的设备支持，保持极高的传输速度和安全性。

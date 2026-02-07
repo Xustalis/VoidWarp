@@ -351,6 +351,13 @@ namespace VoidWarp.Windows.Native
             }
         }
 
+        [LibraryImport(DllName, EntryPoint = "voidwarp_tcp_sender_is_folder")]
+        [return: MarshalAs(UnmanagedType.I1)]
+        private static partial bool voidwarp_tcp_sender_is_folder_native(IntPtr sender);
+
+        public static bool voidwarp_tcp_sender_is_folder(IntPtr sender) =>
+            sender != IntPtr.Zero && voidwarp_tcp_sender_is_folder_native(sender);
+
         [LibraryImport(DllName, EntryPoint = "voidwarp_tcp_sender_destroy")]
         private static partial void voidwarp_tcp_sender_destroy_native(IntPtr sender);
 
@@ -534,6 +541,8 @@ namespace VoidWarp.Windows.Native
             public ulong FileSize;
             [MarshalAs(UnmanagedType.I1)]
             public bool IsValid;
+            [MarshalAs(UnmanagedType.I1)]
+            public bool IsFolder;
         }
 
         #endregion

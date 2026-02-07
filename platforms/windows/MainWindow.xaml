@@ -358,20 +358,23 @@
                         </Grid>
 
                         <!-- Empty State / File Picker -->
-                        <Button Content="点击选择文件" Style="{StaticResource GhostButtonStyle}" BorderThickness="1" BorderBrush="#33FFFFFF" 
-                                Height="80" FontSize="15" Command="{Binding PickFileCommand}"
-                                Visibility="{Binding HasPendingFiles, Converter={StaticResource InverseBoolToVis}}">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="12">
-                                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                            <TextBlock Text="&#xE8F4;" FontFamily="Segoe MDL2 Assets" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,8" Foreground="{StaticResource PrimaryBrush}"/>
-                                            <TextBlock Text="点击选择要发送的文件" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                        </StackPanel>
-                                    </Border>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
+                        <StackPanel Visibility="{Binding HasPendingFiles, Converter={StaticResource InverseBoolToVis}}">
+                            <Button Content="点击选择文件" Style="{StaticResource GhostButtonStyle}" BorderThickness="1" BorderBrush="#33FFFFFF" 
+                                    Height="80" FontSize="15" Command="{Binding PickFileCommand}">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="12">
+                                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                <TextBlock Text="&#xE8F4;" FontFamily="Segoe MDL2 Assets" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,8" Foreground="{StaticResource PrimaryBrush}"/>
+                                                <TextBlock Text="点击选择要发送的文件" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                            
+                            <Button Content="选择文件夹" Style="{StaticResource GhostButtonStyle}" Margin="0,10,0,0" HorizontalAlignment="Center" Padding="15,5" Command="{Binding AddFolderCommand}"/>
+                        </StackPanel>
 
                         <!-- Pending Files List (Visible when files selected) -->
                         <StackPanel Visibility="{Binding HasPendingFiles, Converter={StaticResource BoolToVis}}">
@@ -386,7 +389,18 @@
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
                                                     <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="&#xE7C3;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                        <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Text" Value="&#xE7C3;"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsFolder}" Value="True">
+                                                                            <Setter Property="Text" Value="&#xE8B7;"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
                                                         <TextBlock Text="{Binding FileName}" Foreground="White" VerticalAlignment="Center"/>
                                                     </StackPanel>
                                                     <Button Grid.Column="1" Command="{Binding DataContext.RemoveFileCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" 
@@ -398,7 +412,10 @@
                                 </ItemsControl>
                             </ScrollViewer>
                             
-                            <Button Content="+ 添加更多文件" Style="{StaticResource GhostButtonStyle}" HorizontalAlignment="Left" Padding="15,5" FontSize="12" Command="{Binding PickFileCommand}"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="+ 添加文件" Style="{StaticResource GhostButtonStyle}" Margin="0,0,10,0" Padding="15,5" FontSize="12" Command="{Binding PickFileCommand}"/>
+                                <Button Content="+ 添加文件夹" Style="{StaticResource GhostButtonStyle}" Padding="15,5" FontSize="12" Command="{Binding AddFolderCommand}"/>
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -480,7 +497,18 @@
                                                 </Grid.ColumnDefinitions>
                                                 
                                                 <Border Width="40" Height="40" Background="{StaticResource SurfaceBrush}" CornerRadius="8" Margin="0,0,15,0">
-                                                    <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Text" Value="&#xE7C3;"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsFolder}" Value="True">
+                                                                        <Setter Property="Text" Value="&#xE8B7;"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
                                                 </Border>
                                                 
                                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">

@@ -80,14 +80,16 @@ namespace VoidWarp.Windows.Core
         public string SenderName { get; }
         public string SenderAddress { get; }
         public string FormattedSize { get; }
+        public bool IsFolder { get; }
 
-        public PendingTransferEventArgs(string fileName, long fileSize, string senderName, string senderAddress)
+        public PendingTransferEventArgs(string fileName, long fileSize, string senderName, string senderAddress, bool isFolder = false)
         {
             FileName = fileName ?? "unknown";
             FileSize = fileSize;
             SenderName = senderName ?? "unknown";
             SenderAddress = senderAddress ?? "unknown";
             FormattedSize = FormatFileSize(fileSize);
+            IsFolder = isFolder;
         }
 
         private static string FormatFileSize(long bytes)
@@ -800,7 +802,7 @@ namespace VoidWarp.Windows.Core
                         
                         Log($"Incoming transfer: {fileName} from {senderName}", LogLevel.Info);
                         OnPendingTransfer?.Invoke(this, new PendingTransferEventArgs(
-                            fileName, (long)pending.FileSize, senderName, senderAddr));
+                            fileName, (long)pending.FileSize, senderName, senderAddr, pending.IsFolder));
                         
                         NativeBindings.voidwarp_free_pending_transfer(pending);
                         

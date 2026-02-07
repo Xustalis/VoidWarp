@@ -88,6 +88,7 @@ object NativeLib {
     external fun voidwarpTcpSenderCancel(sender: Long)
     external fun voidwarpTcpSenderDestroy(sender: Long)
     external fun voidwarpTcpSenderTestLink(ipAddress: String, port: Int): Int
+    external fun voidwarpTcpSenderIsFolder(sender: Long): Boolean
 
     external fun voidwarpTransportStartServer(port: Int): Boolean
     external fun voidwarpTransportPing(ipAddress: String, port: Int): Boolean
@@ -128,7 +129,8 @@ object NativeLib {
         val senderName: String,
         val senderAddress: String,
         val fileName: String,
-        val fileSize: Long
+        val fileSize: Long,
+        val isFolder: Boolean
     ) {
         val formattedSize: String
             get() = when {

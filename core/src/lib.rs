@@ -8,6 +8,7 @@ pub mod ffi;
 mod android;
 pub mod checksum;
 pub mod heartbeat;
+pub mod io_utils;
 pub mod protocol;
 pub mod receiver;
 pub mod security;

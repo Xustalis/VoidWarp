@@ -644,7 +644,7 @@ fun MainScreen(
             },
             containerColor = AppColors.Surface,
             title = {
-                Text("接收文件请求", color = Color.White)
+                Text(if (transfer.isFolder) "接收文件夹请求" else "接收文件请求", color = Color.White)
             },
             text = {
                 Column {
@@ -659,12 +659,15 @@ fun MainScreen(
                         fontSize = 12.sp
                     )
                     Spacer(modifier = Modifier.height(8.dp))
+                    val typeLabel = if (transfer.isFolder) "文件夹" else "文件"
+                    val sizeLabel = if (transfer.isFolder) "总大小" else "大小"
+                    
                     Text(
-                        text = "文件: ${transfer.fileName}",
+                        text = "$typeLabel: ${transfer.fileName}",
                         color = Color.White
                     )
                     Text(
-                        text = "大小: ${transfer.formattedSize}",
+                        text = "$sizeLabel: ${transfer.formattedSize}",
                         color = Color.Gray,
                         fontSize = 12.sp
                     )
