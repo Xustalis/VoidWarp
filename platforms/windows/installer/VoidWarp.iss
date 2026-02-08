@@ -7,7 +7,7 @@
 ; 3. Compile this script with ISCC
 
 #define MyAppName "VoidWarp"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "Xenith"
 #define MyAppURL "https://github.com/XenithCode/VoidWarp"
 #define MyAppExeName "VoidWarp.Windows.exe"

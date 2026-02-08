@@ -1,95 +1,114 @@
-﻿cargo :     Checking voidwarp-core v1.0.0 (G:\
-project\VoidWarp\core)
+﻿cargo :     Checking voidwarp-core v1.0.0 (G:\proj
+ect\VoidWarp\core)
 所在位置 行:1 字符: 1
-+ cargo clippy -- -D warnings 2>&1 | Out-File 
--FilePath clippy_output.t ...
-+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: ( 
-       Checking vo...\VoidWarp\core):String)  
-   [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandEr 
-   ror
++ cargo clippy 2>&1 | Out-File -Encoding utf8 clip
+py_output.txt; Get-Co ...
++ ~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (     
+   Checking vo...\VoidWarp\core):String) [],     R
+emoteException
+    + FullyQualifiedErrorId : NativeCommandErro   
+ r
  
-error: this `if` statement can be collapsed
-   --> core\src\io_utils.rs:105:9
+warning: duplicated attribute
+   --> core\src\ffi.rs:670:1
     |
-105 | /         if n == 0 {
-106 | |             if relative_offset < self.
-file_sizes[file_idx] {
-107 | |                 return Err(io::Error::
-new(
-108 | |                     io::ErrorKind::Une
-xpectedEof,
-...   |
-112 | |         }
-    | |_________^
+670 | #[no_mangle]
+    | ^^^^^^^^^^^^
     |
-    = help: for further information visit http
-s://rust-lang.github.io/rust-clippy/rust-1.92.
-0/index.html#collapsible_if
-    = note: `-D clippy::collapsible-if` implie
-d by `-D warnings`
-    = help: to override `-D warnings` add `#[a
-llow(clippy::collapsible_if)]`
-help: collapse nested if block
+note: first defined here
+   --> core\src\ffi.rs:667:1
     |
-105 ~         if n == 0
-106 ~             && relative_offset < self.fi
-le_sizes[file_idx] {
-107 |                 return Err(io::Error::ne
-w(
-...
-110 |                 ));
-111 ~             }
+667 | #[no_mangle]
+    | ^^^^^^^^^^^^
+help: remove this attribute
+   --> core\src\ffi.rs:670:1
     |
+670 | #[no_mangle]
+    | ^^^^^^^^^^^^
+    = help: for further information visit https://
+rust-lang.github.io/rust-clippy/rust-1.92.0/index.
+html#duplicated_attributes
+    = note: `#[warn(clippy::duplicated_attributes)
+]` on by default
 
-error: this can be `std::io::Error::other(_)`
-   --> core\src\io_utils.rs:376:28
-    |
-376 |                 return Err(io::Error::ne
-w(io::ErrorKind::Other, e.clone()));
-    |                            ^^^^^^^^^^^^^
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    |
-    = help: for further information visit http
-s://rust-lang.github.io/rust-clippy/rust-1.92.
-0/index.html#io_other_error
-    = note: `-D clippy::io-other-error` implie
-d by `-D warnings`
-    = help: to override `-D warnings` add `#[a
-llow(clippy::io_other_error)]`
-help: use `std::io::Error::other`
-    |
-376 -                 return Err(io::Error::ne
-w(io::ErrorKind::Other, e.clone()));
-376 +                 return Err(io::Error::ot
-her(e.clone()));
-    |
+warning: unused imports: `calculate_chunk_checksum
+` and `calculate_file_checksum`
+  --> core\src\receiver.rs:13:5
+   |
+13 |     calculate_chunk_checksum, calculate_chunk
+_checksum_raw, calculate_file_checksum,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^                 
+               ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[w
+arn(unused)]`) on by default
 
-error: this can be `std::io::Error::other(_)`
-   --> core\src\receiver.rs:378:54
-    |
-378 |                       writer.manifest_ch
-ecksum().ok_or(std::io::Error::new(
-    |  _______________________________________
-_______________^
-379 | |                         std::io::Error
-Kind::Other,
-380 | |                         "No manifest c
-hecksum",
-381 | |                     ))?
-    | |_____________________^
-    |
-    = help: for further information visit http
-s://rust-lang.github.io/rust-clippy/rust-1.92.
-0/index.html#io_other_error
-help: use `std::io::Error::other`
-    |
-378 ~                     writer.manifest_chec
-ksum().ok_or(std::io::Error::other(
-379 ~                         "No manifest che
-cksum",
-    |
+warning: unused import: `calculate_chunk_checksum`
+ --> core\src\sender.rs:7:5
+  |
+7 |     calculate_chunk_checksum, calculate_chunk_
+checksum_raw, calculate_file_checksum,
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^
 
-error: could not compile `voidwarp-core` (lib)
- due to 3 previous errors
+warning: unused attribute
+   --> core\src\ffi.rs:670:1
+    |
+670 | #[no_mangle]
+    | ^^^^^^^^^^^^ help: remove this attribute
+    |
+note: attribute also specified here
+   --> core\src\ffi.rs:667:1
+    |
+667 | #[no_mangle]
+    | ^^^^^^^^^^^^
+    = note: `#[warn(unused_attributes)]` (part of 
+`#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> core\src\receiver.rs:359:25
+    |
+359 |                     let mut data = &mut chun
+k_buffer[..chunk_len];
+    |                         ----^^^^
+    |                         |
+    |                         help: remove this `m
+ut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn
+(unused)]`) on by default
+
+warning: this expression creates a reference which
+ is immediately dereferenced by the compiler
+   --> core\src\receiver.rs:367:73
+    |
+367 |                     let calculated_bytes = c
+alculate_chunk_checksum_raw(&data);
+    |                                             
+                            ^^^^^ help: change thi
+s to: `data`
+    |
+    = help: for further information visit https://
+rust-lang.github.io/rust-clippy/rust-1.92.0/index.
+html#needless_borrow
+    = note: `#[warn(clippy::needless_borrow)]` on 
+by default
+
+warning: this expression creates a reference which
+ is immediately dereferenced by the compiler
+   --> core\src\receiver.rs:385:38
+    |
+385 |                     writer.write_all(&data)?
+;
+    |                                      ^^^^^ h
+elp: change this to: `data`
+    |
+    = help: for further information visit https://
+rust-lang.github.io/rust-clippy/rust-1.92.0/index.
+html#needless_borrow
+
+warning: `voidwarp-core` (lib) generated 7 warning
+s (run `cargo clippy --fix --lib -p voidwarp-core`
+ to apply 6 suggestions)
+    Finished `dev` profile [unoptimized + debuginf
+o] target(s) in 0.86s
