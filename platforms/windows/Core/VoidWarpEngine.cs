@@ -598,6 +598,31 @@ namespace VoidWarp.Windows.Core
 
                     _senderHandle = senderHandle;
 
+                    // Dynamic Chunk Size Optimization (matches TransferManager and Android)
+                    var actualFileSize = NativeBindings.voidwarp_tcp_sender_get_file_size(senderHandle);
+                    ulong optimalChunkSize;
+                    if (actualFileSize < 32 * 1024 * 1024) // < 32MB: Streaming mode
+                    {
+                        optimalChunkSize = actualFileSize;
+                        Log($"Using streaming mode (single {FormatSize((long)actualFileSize)} chunk)", LogLevel.Debug);
+                    }
+                    else if (actualFileSize < 100 * 1024 * 1024) // < 100MB
+                    {
+                        optimalChunkSize = 1024 * 1024; // 1MB
+                        Log("Using 1MB chunks", LogLevel.Debug);
+                    }
+                    else if (actualFileSize < 1024 * 1024 * 1024) // < 1GB
+                    {
+                        optimalChunkSize = 2 * 1024 * 1024; // 2MB
+                        Log("Using 2MB chunks", LogLevel.Debug);
+                    }
+                    else
+                    {
+                        optimalChunkSize = 4 * 1024 * 1024; // 4MB
+                        Log("Using 4MB chunks for large file", LogLevel.Debug);
+                    }
+                    NativeBindings.voidwarp_tcp_sender_set_chunk_size(senderHandle, optimalChunkSize);
+
                     // Start progress monitoring
                     var progressTask = MonitorSendProgressAsync(senderHandle, (ulong)fileSize, token);
 

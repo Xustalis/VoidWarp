@@ -42,6 +42,29 @@ namespace VoidWarp.Windows.Core
             FileSize = NativeBindings.voidwarp_tcp_sender_get_file_size(_senderHandle);
             IsTransferring = true;
 
+            // Dynamic Chunk Size Optimization (Streaming Mode)
+            // For files under 32MB, use ONE giant chunk to eliminate ALL round-trip delays.
+            // For larger files, use 1MB-4MB chunks to balance throughput and resume capability.
+            ulong optimalChunkSize;
+            if (FileSize < 32 * 1024 * 1024) // < 32MB
+            {
+                optimalChunkSize = FileSize; // Streaming mode: single chunk
+            }
+            else if (FileSize < 100 * 1024 * 1024) // < 100MB
+            {
+                optimalChunkSize = 1024 * 1024; // 1MB chunks
+            }
+            else if (FileSize < 1024 * 1024 * 1024) // < 1GB
+            {
+                optimalChunkSize = 2 * 1024 * 1024; // 2MB chunks
+            }
+            else
+            {
+                optimalChunkSize = 4 * 1024 * 1024; // 4MB chunks for very large files
+            }
+
+            NativeBindings.voidwarp_tcp_sender_set_chunk_size(_senderHandle, optimalChunkSize);
+
             _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
             try

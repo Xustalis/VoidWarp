@@ -358,6 +358,22 @@ namespace VoidWarp.Windows.Native
         public static bool voidwarp_tcp_sender_is_folder(IntPtr sender) =>
             sender != IntPtr.Zero && voidwarp_tcp_sender_is_folder_native(sender);
 
+        [LibraryImport(DllName, EntryPoint = "voidwarp_tcp_sender_set_chunk_size")]
+        private static partial void voidwarp_tcp_sender_set_chunk_size_native(IntPtr sender, nuint size);
+
+        /// <summary>
+        /// Set the chunk size for file transfer. Call this BEFORE starting the transfer.
+        /// Used for performance optimization (e.g., streaming mode for small files).
+        /// </summary>
+        public static void voidwarp_tcp_sender_set_chunk_size(IntPtr sender, ulong size)
+        {
+            if (sender != IntPtr.Zero)
+            {
+                try { voidwarp_tcp_sender_set_chunk_size_native(sender, (nuint)size); }
+                catch (Exception ex) { Debug.WriteLine($"[NativeBindings] set_chunk_size error: {ex.Message}"); }
+            }
+        }
+
         [LibraryImport(DllName, EntryPoint = "voidwarp_tcp_sender_destroy")]
         private static partial void voidwarp_tcp_sender_destroy_native(IntPtr sender);
 
