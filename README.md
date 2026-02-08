@@ -50,8 +50,8 @@
 |:----:|:--------:|:--------:|:--------:|
 | 🪟 **Windows** | Windows 10+ (x64) | [安装包 (.exe)](https://xustalis.github.io/VoidWarp/#download) / [便携版 (.zip)](https://github.com/xustalis/voidwarp/releases) | 开箱即用，无需运行时 |
 | 🤖 **Android** | Android 8.0+ | [APK 直装](https://xustalis.github.io/VoidWarp/#download) | 支持 ARM64/ARMv7/x86_64 |
+| 📱 **iOS** | iOS 16.0+ | [源码编译](platforms/ios/) | ⚠️ **Alpha (未经过测试)** 用 Xcode 编译 |
 | 🍎 **macOS** | 规划中 | - | v2.0 roadmap |
-| 📱 **iOS** | 规划中 | - | v2.0 roadmap |
 
 ### Windows 安装
 

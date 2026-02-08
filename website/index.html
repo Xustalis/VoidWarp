@@ -711,13 +711,13 @@
             class="absolute inset-0 bg-gradient-to-t from-accent-purple/10 to-transparent opacity-30 pointer-events-none">
         </div>
 
-        <div class="max-w-5xl mx-auto px-6 text-center relative z-10">
+        <div class="max-w-7xl mx-auto px-6 text-center relative z-10">
             <h2 class="text-4xl md:text-5xl font-bold mb-6">建立你的专属连接</h2>
             <p class="text-gray-400 mb-16 max-w-2xl mx-auto">
                 所有功能完全离线可用。不依赖服务器，不消耗流量。你的设备就是中心。
             </p>
 
-            <div class="grid md:grid-cols-2 gap-8">
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <!-- Android Card -->
                 <div class="glass-card p-1 rounded-2xl group hover-trigger">
                     <div
@@ -781,6 +781,40 @@
                             </a>
                         </div>
 
+                    </div>
+                </div>
+
+                <!-- iOS Card -->
+                <div class="glass-card p-1 rounded-2xl group hover-trigger">
+                    <div
+                        class="bg-gradient-to-br from-white/5 to-transparent rounded-xl p-8 h-full flex flex-col items-center border border-white/5 group-hover:border-gray-500/50 transition-colors">
+                        <div
+                            class="w-20 h-20 bg-gray-500/10 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                            <i class="fa-brands fa-apple text-4xl text-white"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-2">iOS</h3>
+                        <div class="flex gap-2 mb-6">
+                            <span class="px-2 py-1 bg-white/5 rounded text-xs font-mono text-gray-400">Source
+                                Only</span>
+                            <span
+                                class="px-2 py-1 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 rounded text-xs font-mono version-badge">⚠️
+                                Untested</span>
+                        </div>
+                        <ul class="text-left text-sm text-gray-400 space-y-3 mb-8 w-full px-4">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-code text-gray-500 text-xs"></i>
+                                需使用 Xcode 编译</li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500 text-xs"></i>
+                                包含完整 Swift 源码</li>
+                            <li class="flex items-center gap-2"><i
+                                    class="fa-solid fa-triangle-exclamation text-yellow-500 text-xs"></i>
+                                Alpha 阶段 (无签名)</li>
+                        </ul>
+                        <div class="mt-auto w-full flex flex-col gap-3">
+                            <a href="https://github.com/Xustalis/VoidWarp/tree/main/platforms/ios" target="_blank"
+                                class="w-full py-4 bg-white/10 text-white font-bold rounded-lg hover:bg-white/20 transition-colors flex items-center justify-center gap-2">
+                                <i class="fa-brands fa-github"></i> 查看源代码
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
