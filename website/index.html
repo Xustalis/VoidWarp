@@ -4,8 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VoidWarp | 穿越虚空，极速互联</title>
-    <meta name="description" content="基于 Rust 构建的下一代跨平台局域网传输工具。">
+    <title>VoidWarp</title>
+    <meta name="description"
+        content="基于 Rust 构建的下一代跨平台局域网传输工具。High-performance cross-platform LAN file transfer tool built with Rust.">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -270,22 +271,35 @@
             <!-- Desktop Menu -->
             <div class="hidden lg:flex items-center gap-1 font-mono text-sm">
                 <a href="#how-it-works"
-                    class="px-4 py-2 text-gray-400 hover:text-white transition-colors hover-trigger rounded hover:bg-white/5">原理</a>
+                    class="px-4 py-2 text-gray-400 hover:text-white transition-colors hover-trigger rounded hover:bg-white/5"
+                    data-i18n="nav.how">原理</a>
                 <a href="#features"
-                    class="px-4 py-2 text-gray-400 hover:text-white transition-colors hover-trigger rounded hover:bg-white/5">特性</a>
+                    class="px-4 py-2 text-gray-400 hover:text-white transition-colors hover-trigger rounded hover:bg-white/5"
+                    data-i18n="nav.features">特性</a>
                 <a href="#tech"
-                    class="px-4 py-2 text-gray-400 hover:text-white transition-colors hover-trigger rounded hover:bg-white/5">架构</a>
+                    class="px-4 py-2 text-gray-400 hover:text-white transition-colors hover-trigger rounded hover:bg-white/5"
+                    data-i18n="nav.tech">架构</a>
                 <a href="#roadmap"
-                    class="px-4 py-2 text-gray-400 hover:text-white transition-colors hover-trigger rounded hover:bg-white/5">路线图</a>
+                    class="px-4 py-2 text-gray-400 hover:text-white transition-colors hover-trigger rounded hover:bg-white/5"
+                    data-i18n="nav.roadmap">路线图</a>
                 <a href="#faq"
-                    class="px-4 py-2 text-gray-400 hover:text-white transition-colors hover-trigger rounded hover:bg-white/5">FAQ</a>
+                    class="px-4 py-2 text-gray-400 hover:text-white transition-colors hover-trigger rounded hover:bg-white/5"
+                    data-i18n="nav.faq">FAQ</a>
                 <div class="h-4 w-[1px] bg-white/10 mx-2"></div>
                 <a href="#download"
-                    class="px-5 py-2 text-white bg-white/10 border border-white/10 rounded hover:bg-white/20 transition-all hover-trigger">下载</a>
+                    class="px-5 py-2 text-white bg-white/10 border border-white/10 rounded hover:bg-white/20 transition-all hover-trigger"
+                    data-i18n="nav.download">下载</a>
                 <a href="https://github.com/xustalis/voidwarp" target="_blank"
                     class="px-5 py-2 text-accent-cyan border border-accent-cyan/30 rounded bg-accent-cyan/5 hover:bg-accent-cyan/10 transition-all hover-trigger flex items-center gap-2 ml-2">
                     <i class="fa-brands fa-github"></i> <span class="hidden xl:inline">GITHUB</span>
                 </a>
+                <!-- Language Switcher -->
+                <button id="lang-toggle"
+                    class="px-3 py-2 text-gray-400 hover:text-white transition-colors hover-trigger rounded hover:bg-white/5 flex items-center gap-2 ml-2"
+                    title="Switch Language">
+                    <i class="fa-solid fa-globe"></i>
+                    <span id="lang-label" class="text-xs font-mono">EN</span>
+                </button>
             </div>
 
             <!-- Mobile Menu Btn -->
@@ -309,15 +323,16 @@
                             class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-rust opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-2 w-2 bg-accent-rust"></span>
                     </span>
-                    <span class="text-xs font-mono text-gray-300 tracking-widest">SYSTEM ONLINE // V1.0.0</span>
+                    <span class="text-xs font-mono text-gray-300 tracking-widest">SYSTEM ONLINE // V1.1.0</span>
                 </div>
 
                 <h1 class="text-6xl md:text-7xl lg:text-8xl font-bold leading-tight tracking-tight">
-                    <span class="block text-white">安全</span>
-                    <span class="text-gradient">连接</span>
+                    <span class="block text-white" data-i18n="hero.title1">安全</span>
+                    <span class="text-gradient" data-i18n="hero.title2">连接</span>
                 </h1>
 
-                <p class="text-gray-400 text-lg md:text-xl max-w-xl font-light leading-relaxed">
+                <p class="text-gray-400 text-lg md:text-xl max-w-xl font-light leading-relaxed"
+                    data-i18n-html="hero.desc">
                     基于 <span class="text-accent-rust font-medium">Rust</span> 的下一代局域网传输协议。
                     在 <span class="text-white">Android</span> 与 <span class="text-white">Windows</span>
                     之间构建加密的高速虫洞，彻底告别数据线，享受无缝互联体验。
@@ -326,7 +341,7 @@
                 <div class="flex flex-wrap gap-5 pt-4">
                     <a href="#download"
                         class="btn-holo px-8 py-4 border border-white/20 rounded-lg text-white font-medium flex items-center gap-3 hover-trigger">
-                        <span>开始传输</span>
+                        <span data-i18n="hero.cta">开始传输</span>
                         <i class="fa-solid fa-arrow-right text-accent-cyan"></i>
                     </a>
                     <a href="#tech"
@@ -653,8 +668,9 @@
                 <!-- Item 1 -->
                 <div class="relative flex flex-col md:flex-row items-center justify-between w-full group">
                     <div class="hidden md:block w-5/12 text-right pr-8">
-                        <h3 class="text-xl font-bold text-accent-cyan">v1.0 (Current)</h3>
-                        <p class="text-gray-400 text-sm mt-2">核心功能发布：Android 与 Windows 互传、Rust 核心、基础加密。</p>
+                        <h3 class="text-xl font-bold text-accent-cyan" data-i18n="roadmap.v10.title">v1.0 (已发布)</h3>
+                        <p class="text-gray-400 text-sm mt-2" data-i18n="roadmap.v10.desc">核心功能发布：Android 与 Windows
+                            互传、Rust 核心、基础加密。</p>
                     </div>
                     <div
                         class="absolute left-0 md:left-1/2 w-4 h-4 bg-accent-cyan rounded-full border-4 border-void-bg md:-translate-x-1/2 z-10 shadow-[0_0_15px_rgba(34,211,238,0.5)]">
@@ -662,7 +678,7 @@
                     <div class="w-full md:w-5/12 pl-8">
                         <!-- Mobile Title -->
                         <div class="md:hidden mb-2">
-                            <h3 class="text-xl font-bold text-accent-cyan">v1.0 (Current)</h3>
+                            <h3 class="text-xl font-bold text-accent-cyan" data-i18n="roadmap.v10.title">v1.0 (已发布)</h3>
                         </div>
                         <div class="glass-card p-4 rounded-lg md:hidden">
                             <p class="text-gray-400 text-sm">核心功能发布：Android 与 Windows 互传、Rust 核心、基础加密。</p>
@@ -681,10 +697,12 @@
                         class="absolute left-0 md:left-1/2 w-4 h-4 bg-void-bg border-2 border-gray-500 rounded-full md:-translate-x-1/2 z-10">
                     </div>
                     <div class="w-full md:w-5/12 pl-8">
-                        <h3 class="text-xl font-bold text-gray-200">v1.1 (计划中)</h3>
-                        <p class="text-gray-400 text-sm mt-2 mb-4">文件夹传输优化、传输历史记录管理、断点续传增强。</p>
+                        <h3 class="text-xl font-bold text-accent-cyan" data-i18n="roadmap.v11.title">v1.1 (当前版本)</h3>
+                        <p class="text-gray-400 text-sm mt-2 mb-4" data-i18n="roadmap.v11.desc">
+                            性能优化：流式传输、TCP_NODELAY、增量校验。传输历史记录管理。</p>
                         <div class="flex gap-2">
-                            <span class="text-xs bg-white/5 px-2 py-1 rounded text-gray-500">Planned</span>
+                            <span
+                                class="text-xs bg-accent-cyan/10 px-2 py-1 rounded text-accent-cyan border border-accent-cyan/20">Current</span>
                         </div>
                     </div>
                 </div>
@@ -1115,6 +1133,134 @@
                 navbar.classList.add('bg-void-bg/80');
             }
         });
+
+        // --- Internationalization (i18n) ---
+        const i18n = {
+            zh: {
+                'nav.how': '原理',
+                'nav.features': '特性',
+                'nav.tech': '架构',
+                'nav.roadmap': '路线图',
+                'nav.faq': 'FAQ',
+                'nav.download': '下载',
+                'hero.title1': '安全',
+                'hero.title2': '连接',
+                'hero.desc': '基于 <span class="text-accent-rust font-medium">Rust</span> 的下一代局域网传输协议。在 <span class="text-white">Android</span> 与 <span class="text-white">Windows</span> 之间构建加密的高速虫洞，彻底告别数据线，享受无缝互联体验。',
+                'hero.cta': '开始传输',
+                'how.title': '工作原理',
+                'how.subtitle': '简单三步，实现设备间的无缝连接',
+                'how.step1.title': '1. 自动发现',
+                'how.step1.desc': '利用 UDP 广播技术，无需手动输入 IP 地址，设备打开应用即可在局域网内相互"看见"。',
+                'how.step2.title': '2. 安全握手',
+                'how.step2.desc': '设备间交换公钥进行身份验证，建立加密通道。所有请求需经用户确认，杜绝恶意连接。',
+                'how.step3.title': '3. 极速传输',
+                'how.step3.desc': '建立 TCP 直连通道，充分利用局域网带宽（可达 100MB/s+），实现大文件秒传。',
+                'features.title': '核心特性',
+                'features.rust.title': 'Rust 极速核心',
+                'features.rust.desc': '摒弃沉重的虚拟机，利用 Rust 的零成本抽象特性，在局域网内榨干带宽极限，GB 级文件瞬时传输。',
+                'features.security.title': '军工级加密',
+                'features.security.desc': '内置 crypto.rs 模块。每一次握手，每一字节的数据，都经过端到端高强度加密。无中间人，无云端窥探。',
+                'features.discovery.title': '无感自动发现',
+                'features.discovery.desc': '基于 UDP 广播与多播技术。打开应用，设备即刻显现。无需扫码，无需手动输入 IP，就像魔法一样。',
+                'download.title': '建立你的专属连接',
+                'download.subtitle': '所有功能完全离线可用。不依赖服务器，不消耗流量。你的设备就是中心。',
+                'download.android.features': ['Material You 设计', '后台服务保活', '系统分享集成'],
+                'download.windows.features': ['原生 WPF 性能', '托盘最小化运行', '拖拽发送文件'],
+                'roadmap.title': '开发路线图',
+                'roadmap.subtitle': 'VoidWarp 的未来计划',
+                'roadmap.v10.title': 'v1.0 (已发布)',
+                'roadmap.v10.desc': '核心功能发布：Android 与 Windows 互传、Rust 核心、基础加密。',
+                'roadmap.v11.title': 'v1.1 (当前版本)',
+                'roadmap.v11.desc': '性能优化：流式传输、TCP_NODELAY、增量校验。传输历史记录管理。',
+                'roadmap.v20.title': 'v2.0 (未来)',
+                'roadmap.v20.desc': 'macOS 与 iOS 客户端支持，实现全平台覆盖。剪贴板同步、中继模式跨网段传输。',
+                'faq.title': '常见问题',
+                'faq.subtitle': '安装和使用过程中的常见疑问',
+            },
+            en: {
+                'nav.how': 'How It Works',
+                'nav.features': 'Features',
+                'nav.tech': 'Tech',
+                'nav.roadmap': 'Roadmap',
+                'nav.faq': 'FAQ',
+                'nav.download': 'Download',
+                'hero.title1': 'Secure',
+                'hero.title2': 'Connection',
+                'hero.desc': 'Next-generation LAN transfer protocol built with <span class="text-accent-rust font-medium">Rust</span>. Create an encrypted high-speed wormhole between <span class="text-white">Android</span> and <span class="text-white">Windows</span>. Say goodbye to cables.',
+                'hero.cta': 'Start Transfer',
+                'how.title': 'How It Works',
+                'how.subtitle': 'Three simple steps to seamless device connection',
+                'how.step1.title': '1. Auto Discovery',
+                'how.step1.desc': 'Using UDP broadcast technology, devices discover each other on the LAN automatically—no manual IP input required.',
+                'how.step2.title': '2. Secure Handshake',
+                'how.step2.desc': 'Devices exchange public keys for authentication and establish encrypted channels. All requests require user confirmation.',
+                'how.step3.title': '3. Blazing Fast Transfer',
+                'how.step3.desc': 'Direct TCP connection maximizes LAN bandwidth (100MB/s+), enabling instant transfer of large files.',
+                'features.title': 'Core Features',
+                'features.rust.title': 'Rust-Powered Speed',
+                'features.rust.desc': 'No heavy VMs. Leverage Rust\'s zero-cost abstractions to push LAN bandwidth to its limits—GB files transfer instantly.',
+                'features.security.title': 'Military-Grade Encryption',
+                'features.security.desc': 'Built-in crypto.rs module. Every handshake, every byte is end-to-end encrypted. No middlemen, no cloud snooping.',
+                'features.discovery.title': 'Seamless Auto-Discovery',
+                'features.discovery.desc': 'UDP broadcast & multicast technology. Open the app and devices appear instantly. No QR codes, no manual IP—like magic.',
+                'download.title': 'Build Your Private Connection',
+                'download.subtitle': 'All features work completely offline. No servers, no data usage. Your device is the center.',
+                'download.android.features': ['Material You Design', 'Background Service', 'System Share Integration'],
+                'download.windows.features': ['Native WPF Performance', 'System Tray Mode', 'Drag & Drop Files'],
+                'roadmap.title': 'Development Roadmap',
+                'roadmap.subtitle': 'The future of VoidWarp',
+                'roadmap.v10.title': 'v1.0 (Released)',
+                'roadmap.v10.desc': 'Core features: Android & Windows file transfer, Rust core, basic encryption.',
+                'roadmap.v11.title': 'v1.1 (Current)',
+                'roadmap.v11.desc': 'Performance: Streaming mode, TCP_NODELAY, incremental hashing. Transfer history management.',
+                'roadmap.v20.title': 'v2.0 (Future)',
+                'roadmap.v20.desc': 'macOS & iOS clients for full platform coverage. Clipboard sync, relay mode for cross-subnet transfer.',
+                'faq.title': 'FAQ',
+                'faq.subtitle': 'Common questions about installation and usage',
+            }
+        };
+
+        let currentLang = localStorage.getItem('voidwarp-lang') || 'zh';
+
+        function applyLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('voidwarp-lang', lang);
+
+            // Update lang label
+            const langLabel = document.getElementById('lang-label');
+            if (langLabel) langLabel.textContent = lang === 'zh' ? 'EN' : '中文';
+
+            // Update document lang attribute
+            document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+
+            // Update all elements with data-i18n
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang][key]) {
+                    el.textContent = i18n[lang][key];
+                }
+            });
+
+            // Update all elements with data-i18n-html (preserves inner HTML)
+            document.querySelectorAll('[data-i18n-html]').forEach(el => {
+                const key = el.getAttribute('data-i18n-html');
+                if (i18n[lang][key]) {
+                    el.innerHTML = i18n[lang][key];
+                }
+            });
+        }
+
+        // Language toggle handler
+        const langToggle = document.getElementById('lang-toggle');
+        if (langToggle) {
+            langToggle.addEventListener('click', () => {
+                const newLang = currentLang === 'zh' ? 'en' : 'zh';
+                applyLanguage(newLang);
+            });
+        }
+
+        // Apply saved language on load
+        applyLanguage(currentLang);
     </script>
 </body>
 
