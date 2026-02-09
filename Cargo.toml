@@ -3,3 +3,9 @@ members = [
     "core",
 ]
 resolver = "2"
+
+# Release 优化配置
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

@@ -250,6 +250,68 @@ cd platforms/windows/installer
 
 ---
 
+## 🤝 贡献指南
+
+我们欢迎所有形式的贡献！请阅读以下指南参与项目开发。
+
+### 贡献流程
+
+```bash
+# 1. Fork 本仓库并克隆到本地
+git clone https://github.com/YOUR_USERNAME/VoidWarp.git
+cd VoidWarp
+
+# 2. 创建功能分支
+git checkout -b feature/your-feature-name
+
+# 3. 开发并测试
+cd core && cargo test && cd ..
+
+# 4. 提交更改 (遵循 Commit 规范)
+git commit -m "feat: add new transfer feature"
+
+# 5. 推送并创建 Pull Request
+git push origin feature/your-feature-name
+```
+
+### Commit 规范
+
+| 类型 | 说明 |
+|------|------|
+| `feat` | 新功能 |
+| `fix` | Bug 修复 |
+| `docs` | 文档更新 |
+| `refactor` | 代码重构 (非功能性) |
+| `test` | 测试相关 |
+| `chore` | 构建/配置变更 |
+
+格式: `<type>: <description>` (使用英文，首字母小写)
+
+### 代码规范
+
+**Rust Core**:
+```bash
+# 提交前必须通过
+cargo fmt -- --check    # 代码格式
+cargo clippy -- -D warnings  # 静态分析
+cargo test               # 所有测试
+```
+
+**Pull Request 要求**:
+- PR 标题需清晰描述改动内容
+- 如修复 Issue，请在描述中关联 (如 `Fixes #123`)
+- 确保 CI 检查全部通过
+
+### 报告问题
+
+提交 Issue 时请包含:
+- **环境**: 操作系统、VoidWarp 版本
+- **复现步骤**: 详细的操作步骤
+- **预期行为 vs 实际行为**
+- **日志/截图** (如有)
+
+---
+
 ## 📜 许可证 (License)
 
 Copyright © 2024-2026 Xustalis.
