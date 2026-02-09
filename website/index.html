@@ -427,8 +427,8 @@
     <section id="how-it-works" class="py-24 relative bg-white/[0.02]">
         <div class="max-w-7xl mx-auto px-6">
             <div class="text-center mb-16">
-                <h2 class="text-3xl md:text-4xl font-bold mb-4">工作原理</h2>
-                <p class="text-gray-400">简单三步，实现设备间的无缝连接</p>
+                <h2 class="text-3xl md:text-4xl font-bold mb-4" data-i18n="how.title">工作原理</h2>
+                <p class="text-gray-400" data-i18n="how.subtitle">简单三步，实现设备间的无缝连接</p>
             </div>
 
             <div class="grid md:grid-cols-3 gap-8 relative">
@@ -443,8 +443,9 @@
                         class="w-24 h-24 rounded-full bg-void-bg border border-accent-cyan/30 flex items-center justify-center mb-6 relative z-10 shadow-[0_0_30px_rgba(34,211,238,0.1)] group-hover:scale-110 transition-transform duration-300">
                         <i class="fa-solid fa-radar text-3xl text-accent-cyan"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-2">1. 自动发现</h3>
-                    <p class="text-sm text-gray-400 px-4">利用 UDP 广播技术，无需手动输入 IP 地址，设备打开应用即可在局域网内相互“看见”。</p>
+                    <h3 class="text-xl font-bold mb-2" data-i18n="how.step1.title">1. 自动发现</h3>
+                    <p class="text-sm text-gray-400 px-4" data-i18n="how.step1.desc">利用 UDP 广播技术，无需手动输入 IP
+                        地址，设备打开应用即可在局域网内相互“看见”。</p>
                 </div>
 
                 <!-- Step 2 -->
@@ -453,8 +454,9 @@
                         class="w-24 h-24 rounded-full bg-void-bg border border-accent-purple/30 flex items-center justify-center mb-6 relative z-10 shadow-[0_0_30px_rgba(192,132,252,0.1)] group-hover:scale-110 transition-transform duration-300">
                         <i class="fa-solid fa-handshake text-3xl text-accent-purple"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-2">2. 安全握手</h3>
-                    <p class="text-sm text-gray-400 px-4">设备间交换公钥进行身份验证，建立加密通道。所有请求需经用户确认，杜绝恶意连接。</p>
+                    <h3 class="text-xl font-bold mb-2" data-i18n="how.step2.title">2. 安全握手</h3>
+                    <p class="text-sm text-gray-400 px-4" data-i18n="how.step2.desc">
+                        设备间交换公钥进行身份验证，建立加密通道。所有请求需经用户确认，杜绝恶意连接。</p>
                 </div>
 
                 <!-- Step 3 -->
@@ -463,8 +465,9 @@
                         class="w-24 h-24 rounded-full bg-void-bg border border-accent-green/30 flex items-center justify-center mb-6 relative z-10 shadow-[0_0_30px_rgba(74,222,128,0.1)] group-hover:scale-110 transition-transform duration-300">
                         <i class="fa-solid fa-paper-plane text-3xl text-accent-green"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-2">3. 极速传输</h3>
-                    <p class="text-sm text-gray-400 px-4">建立 TCP 直连通道，充分利用局域网带宽（可达 100MB/s+），实现大文件秒传。</p>
+                    <h3 class="text-xl font-bold mb-2" data-i18n="how.step3.title">3. 极速传输</h3>
+                    <p class="text-sm text-gray-400 px-4" data-i18n="how.step3.desc">建立 TCP 直连通道，充分利用局域网带宽（可达
+                        100MB/s+），实现大文件秒传。</p>
                 </div>
             </div>
         </div>
@@ -474,30 +477,34 @@
     <section class="py-24 relative">
         <div class="max-w-7xl mx-auto px-6">
             <div class="mb-12">
-                <h2 class="text-3xl font-bold mb-4">应用场景</h2>
+                <h2 class="text-3xl font-bold mb-4" data-i18n="usecases.title">应用场景</h2>
                 <div class="h-1 w-12 bg-accent-rust rounded"></div>
             </div>
 
             <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div class="glass-card p-6 rounded-xl hover-trigger">
                     <div class="text-accent-rust mb-4"><i class="fa-solid fa-wifi-slash text-2xl"></i></div>
-                    <h3 class="font-bold text-lg mb-2">无网环境传输</h3>
-                    <p class="text-sm text-gray-400">在飞机、地下室或网络受限的办公环境中，依然可以进行稳定的文件交换。</p>
+                    <h3 class="font-bold text-lg mb-2" data-i18n="usecases.case1.title">无网环境传输</h3>
+                    <p class="text-sm text-gray-400" data-i18n="usecases.case1.desc">在飞机、地下室或网络受限的办公环境中，依然可以进行稳定的文件交换。
+                    </p>
                 </div>
                 <div class="glass-card p-6 rounded-xl hover-trigger">
                     <div class="text-accent-cyan mb-4"><i class="fa-solid fa-file-video text-2xl"></i></div>
-                    <h3 class="font-bold text-lg mb-2">媒体资产迁移</h3>
-                    <p class="text-sm text-gray-400">摄影师、视频创作者可以快速将手机拍摄的 4K 视频原片传输到电脑进行剪辑。</p>
+                    <h3 class="font-bold text-lg mb-2" data-i18n="usecases.case2.title">媒体资产迁移</h3>
+                    <p class="text-sm text-gray-400" data-i18n="usecases.case2.desc">摄影师、视频创作者可以快速将手机拍摄的 4K
+                        视频原片传输到电脑进行剪辑。</p>
                 </div>
                 <div class="glass-card p-6 rounded-xl hover-trigger">
                     <div class="text-accent-purple mb-4"><i class="fa-solid fa-user-secret text-2xl"></i></div>
-                    <h3 class="font-bold text-lg mb-2">隐私数据保护</h3>
-                    <p class="text-sm text-gray-400">传输过程不经过第三方服务器，敏感文档、私人照片完全掌握在自己手中。</p>
+                    <h3 class="font-bold text-lg mb-2" data-i18n="usecases.case3.title">隐私数据保护</h3>
+                    <p class="text-sm text-gray-400" data-i18n="usecases.case3.desc">传输过程不经过第三方服务器，敏感文档、私人照片完全掌握在自己手中。
+                    </p>
                 </div>
                 <div class="glass-card p-6 rounded-xl hover-trigger">
                     <div class="text-white mb-4"><i class="fa-brands fa-android text-2xl"></i></div>
-                    <h3 class="font-bold text-lg mb-2">跨生态协作</h3>
-                    <p class="text-sm text-gray-400">打破 Android 与 Windows 之间的壁垒，无需微信文件助手，传文件从未如此简单。</p>
+                    <h3 class="font-bold text-lg mb-2" data-i18n="usecases.case4.title">跨生态协作</h3>
+                    <p class="text-sm text-gray-400" data-i18n="usecases.case4.desc">打破 Android 与 Windows
+                        之间的壁垒，无需微信文件助手，传文件从未如此简单。</p>
                 </div>
             </div>
         </div>
@@ -507,7 +514,7 @@
     <section id="features" class="py-24 relative bg-black/30">
         <div class="max-w-7xl mx-auto px-6">
             <div class="mb-20">
-                <h2 class="text-4xl font-bold mb-4">核心特性</h2>
+                <h2 class="text-4xl font-bold mb-4" data-i18n="features.title">核心特性</h2>
                 <div class="h-1 w-20 bg-accent-purple rounded"></div>
             </div>
 
@@ -521,8 +528,8 @@
                         class="w-12 h-12 bg-accent-rust/10 rounded-lg border border-accent-rust/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform text-accent-rust">
                         <i class="fa-solid fa-bolt text-xl"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-3 text-white">Rust 极速核心</h3>
-                    <p class="text-gray-400 text-sm leading-relaxed mb-6">
+                    <h3 class="text-xl font-bold mb-3 text-white" data-i18n="features.rust.title">Rust 极速核心</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed mb-6" data-i18n="features.rust.desc">
                         摒弃沉重的虚拟机，利用 Rust 的零成本抽象特性，在局域网内榨干带宽极限，GB 级文件瞬时传输。
                     </p>
                     <div class="text-xs font-mono text-gray-500 border-t border-white/5 pt-4 flex justify-between">
@@ -540,8 +547,8 @@
                         class="w-12 h-12 bg-accent-purple/10 rounded-lg border border-accent-purple/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform text-accent-purple">
                         <i class="fa-solid fa-lock text-xl"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-3 text-white">军工级加密</h3>
-                    <p class="text-gray-400 text-sm leading-relaxed mb-6">
+                    <h3 class="text-xl font-bold mb-3 text-white" data-i18n="features.security.title">军工级加密</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed mb-6" data-i18n-html="features.security.desc">
                         内置 <code>crypto.rs</code> 模块。每一次握手，每一字节的数据，都经过端到端高强度加密。无中间人，无云端窥探。
                     </p>
                     <div class="text-xs font-mono text-gray-500 border-t border-white/5 pt-4 flex justify-between">
@@ -559,8 +566,8 @@
                         class="w-12 h-12 bg-accent-cyan/10 rounded-lg border border-accent-cyan/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform text-accent-cyan">
                         <i class="fa-solid fa-wifi text-xl"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-3 text-white">无感自动发现</h3>
-                    <p class="text-gray-400 text-sm leading-relaxed mb-6">
+                    <h3 class="text-xl font-bold mb-3 text-white" data-i18n="features.discovery.title">无感自动发现</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed mb-6" data-i18n="features.discovery.desc">
                         基于 UDP 广播与多播技术。打开应用，设备即刻显现。无需扫码，无需手动输入 IP，就像魔法一样。
                     </p>
                     <div class="text-xs font-mono text-gray-500 border-t border-white/5 pt-4 flex justify-between">
@@ -620,9 +627,9 @@
             <!-- Description -->
             <div class="order-1 lg:order-2 space-y-8">
                 <div>
-                    <h2 class="text-3xl md:text-4xl font-bold mb-4">Rust + FFI <br><span
+                    <h2 class="text-3xl md:text-4xl font-bold mb-4" data-i18n-html="tech.title">Rust + FFI <br><span
                             class="text-gray-500">底层统一，体验原生</span></h2>
-                    <p class="text-gray-400">
+                    <p class="text-gray-400" data-i18n="tech.desc">
                         我们拒绝使用 Electron 或 Web 技术构建核心。95% 的业务逻辑（网络、加密、文件 I/O）下沉在高性能的 Rust 层，通过 FFI 暴露给上层 UI。
                     </p>
                 </div>
@@ -633,8 +640,9 @@
                             class="w-8 h-8 rounded bg-white/5 border border-white/10 flex items-center justify-center text-xs font-mono shrink-0">
                             01</div>
                         <div>
-                            <h4 class="text-white font-bold">Unified Core (统一核心)</h4>
-                            <p class="text-sm text-gray-500 mt-1">一份 Rust 代码编译为 .so (Android) 和 .dll
+                            <h4 class="text-white font-bold" data-i18n="tech.p1.title">Unified Core (统一核心)</h4>
+                            <p class="text-sm text-gray-500 mt-1" data-i18n="tech.p1.desc">一份 Rust 代码编译为 .so (Android) 和
+                                .dll
                                 (Windows)，保证双端行为绝对一致，减少维护成本。</p>
                         </div>
                     </div>
@@ -643,8 +651,9 @@
                             class="w-8 h-8 rounded bg-white/5 border border-white/10 flex items-center justify-center text-xs font-mono shrink-0">
                             02</div>
                         <div>
-                            <h4 class="text-white font-bold">Native UI (原生界面)</h4>
-                            <p class="text-sm text-gray-500 mt-1">使用 Kotlin (Jetpack Compose) 和 C# (WPF) 构建
+                            <h4 class="text-white font-bold" data-i18n="tech.p2.title">Native UI (原生界面)</h4>
+                            <p class="text-sm text-gray-500 mt-1" data-i18n="tech.p2.desc">使用 Kotlin (Jetpack Compose) 和
+                                C# (WPF) 构建
                                 UI，提供极致的启动速度和完美的系统集成（如通知、拖拽）。</p>
                         </div>
                     </div>
@@ -730,8 +739,8 @@
         </div>
 
         <div class="max-w-7xl mx-auto px-6 text-center relative z-10">
-            <h2 class="text-4xl md:text-5xl font-bold mb-6">建立你的专属连接</h2>
-            <p class="text-gray-400 mb-16 max-w-2xl mx-auto">
+            <h2 class="text-4xl md:text-5xl font-bold mb-6" data-i18n="download.title">建立你的专属连接</h2>
+            <p class="text-gray-400 mb-16 max-w-2xl mx-auto" data-i18n="download.subtitle">
                 所有功能完全离线可用。不依赖服务器，不消耗流量。你的设备就是中心。
             </p>
 
@@ -748,15 +757,18 @@
                         <div class="flex gap-2 mb-6">
                             <span class="px-2 py-1 bg-white/5 rounded text-xs font-mono text-gray-400">APK</span>
                             <span
-                                class="px-2 py-1 bg-white/5 rounded text-xs font-mono text-gray-400 version-badge">v1.0.0</span>
+                                class="px-2 py-1 bg-white/5 rounded text-xs font-mono text-gray-400 version-badge">v1.1.0</span>
                         </div>
                         <ul class="text-left text-sm text-gray-400 space-y-3 mb-8 w-full px-4">
                             <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500 text-xs"></i>
-                                Material You 设计</li>
+                                <span data-i18n="download.android.f1">Material You 设计</span>
+                            </li>
                             <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500 text-xs"></i>
-                                后台服务保活</li>
+                                <span data-i18n="download.android.f2">后台服务保活</span>
+                            </li>
                             <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500 text-xs"></i>
-                                系统分享集成</li>
+                                <span data-i18n="download.android.f3">系统分享集成</span>
+                            </li>
                         </ul>
                         <a id="btn-download-android" href="https://github.com/xustalis/voidwarp/releases/latest"
                             class="mt-auto w-full py-4 bg-white text-black font-bold rounded-lg hover:bg-green-400 transition-colors flex items-center justify-center gap-2">
@@ -778,15 +790,18 @@
                             <span class="px-2 py-1 bg-white/5 rounded text-xs font-mono text-gray-400">EXE
                                 (Installer)</span>
                             <span
-                                class="px-2 py-1 bg-white/5 rounded text-xs font-mono text-gray-400 version-badge">v1.0.0</span>
+                                class="px-2 py-1 bg-white/5 rounded text-xs font-mono text-gray-400 version-badge">v1.1.0</span>
                         </div>
                         <ul class="text-left text-sm text-gray-400 space-y-3 mb-8 w-full px-4">
                             <li class="flex items-center gap-2"><i class="fa-solid fa-check text-blue-500 text-xs"></i>
-                                原生 WPF 性能</li>
+                                <span data-i18n="download.windows.f1">原生 WPF 性能</span>
+                            </li>
                             <li class="flex items-center gap-2"><i class="fa-solid fa-check text-blue-500 text-xs"></i>
-                                托盘最小化运行</li>
+                                <span data-i18n="download.windows.f2">托盘最小化运行</span>
+                            </li>
                             <li class="flex items-center gap-2"><i class="fa-solid fa-check text-blue-500 text-xs"></i>
-                                拖拽发送文件</li>
+                                <span data-i18n="download.windows.f3">拖拽发送文件</span>
+                            </li>
                         </ul>
                         <div class="mt-auto w-full flex flex-col gap-3">
                             <a id="btn-download-windows-exe" href="https://github.com/xustalis/voidwarp/releases/latest"
@@ -842,53 +857,61 @@
     <section id="faq" class="py-24 relative bg-white/[0.02]">
         <div class="max-w-3xl mx-auto px-6">
             <div class="text-center mb-16">
-                <h2 class="text-3xl font-bold mb-4">常见问题</h2>
-                <p class="text-gray-400">安装和使用过程中的常见疑问</p>
+                <h2 class="text-3xl font-bold mb-4" data-i18n="faq.title">常见问题</h2>
+                <p class="text-gray-400" data-i18n="faq.subtitle">安装和使用过程中的常见疑问</p>
             </div>
 
             <div class="space-y-4">
                 <details class="glass-card rounded-lg group">
-                    <summary class="flex justify-between items-center p-6 cursor-pointer list-none">
-                        <span class="font-medium text-lg">传输速度有多快？</span>
+                    <summary
+                        class="flex justify-between items-center p-6 cursor-pointer list-none hover:bg-white/5 transition-colors rounded-t-lg">
+                        <span class="font-medium text-lg" data-i18n="faq.q1">传输速度有多快？</span>
                         <span class="transition group-open:rotate-180"><i
                                 class="fa-solid fa-chevron-down text-gray-500"></i></span>
                     </summary>
-                    <div class="px-6 pb-6 text-gray-400 text-sm leading-relaxed border-t border-white/5 pt-4">
+                    <div class="px-6 pb-6 text-gray-400 text-sm leading-relaxed border-t border-white/5 pt-4"
+                        data-i18n="faq.a1">
                         速度主要取决于您的路由器性能和网络环境。在 5GHz Wi-Fi 环境下，VoidWarp 通常可以达到 30MB/s - 100MB/s 的速度。由于我们使用 Rust
                         编写底层并优化了缓冲区，通常比基于 HTTP 的传输工具更快。
                     </div>
                 </details>
 
                 <details class="glass-card rounded-lg group">
-                    <summary class="flex justify-between items-center p-6 cursor-pointer list-none">
-                        <span class="font-medium text-lg">需要连接互联网吗？</span>
+                    <summary
+                        class="flex justify-between items-center p-6 cursor-pointer list-none hover:bg-white/5 transition-colors rounded-t-lg">
+                        <span class="font-medium text-lg" data-i18n="faq.q2">需要连接互联网吗？</span>
                         <span class="transition group-open:rotate-180"><i
                                 class="fa-solid fa-chevron-down text-gray-500"></i></span>
                     </summary>
-                    <div class="px-6 pb-6 text-gray-400 text-sm leading-relaxed border-t border-white/5 pt-4">
+                    <div class="px-6 pb-6 text-gray-400 text-sm leading-relaxed border-t border-white/5 pt-4"
+                        data-i18n="faq.a2">
                         完全不需要。VoidWarp 仅在局域网（LAN）内工作。您的数据从一台设备直接流向另一台设备，不经过任何外部服务器。这也意味着即使断网，只要路由器通电，依然可以使用。
                     </div>
                 </details>
 
                 <details class="glass-card rounded-lg group">
-                    <summary class="flex justify-between items-center p-6 cursor-pointer list-none">
-                        <span class="font-medium text-lg">为什么我的设备互相找不到？</span>
+                    <summary
+                        class="flex justify-between items-center p-6 cursor-pointer list-none hover:bg-white/5 transition-colors rounded-t-lg">
+                        <span class="font-medium text-lg" data-i18n="faq.q3">为什么我的设备互相找不到？</span>
                         <span class="transition group-open:rotate-180"><i
                                 class="fa-solid fa-chevron-down text-gray-500"></i></span>
                     </summary>
-                    <div class="px-6 pb-6 text-gray-400 text-sm leading-relaxed border-t border-white/5 pt-4">
+                    <div class="px-6 pb-6 text-gray-400 text-sm leading-relaxed border-t border-white/5 pt-4"
+                        data-i18n="faq.a3">
                         请确保两台设备连接到同一个 Wi-Fi 网络。如果在 Windows 上，请检查防火墙设置，确保允许 VoidWarp 进行专用网络通信。在某些公共 Wi-Fi（如学校、酒店）中，AP
                         隔离功能可能会阻止设备发现。
                     </div>
                 </details>
 
                 <details class="glass-card rounded-lg group">
-                    <summary class="flex justify-between items-center p-6 cursor-pointer list-none">
-                        <span class="font-medium text-lg">这个项目是开源的吗？</span>
+                    <summary
+                        class="flex justify-between items-center p-6 cursor-pointer list-none hover:bg-white/5 transition-colors rounded-t-lg">
+                        <span class="font-medium text-lg" data-i18n="faq.q4">这个项目是开源的吗？</span>
                         <span class="transition group-open:rotate-180"><i
                                 class="fa-solid fa-chevron-down text-gray-500"></i></span>
                     </summary>
-                    <div class="px-6 pb-6 text-gray-400 text-sm leading-relaxed border-t border-white/5 pt-4">
+                    <div class="px-6 pb-6 text-gray-400 text-sm leading-relaxed border-t border-white/5 pt-4"
+                        data-i18n="faq.a4">
                         是的，VoidWarp 是 100% 开源的。您可以访问我们的 GitHub 仓库查看源代码、提交 Issue 或贡献代码。
                     </div>
                 </details>
@@ -906,24 +929,28 @@
                         <span class="font-bold text-xl tracking-wider text-white">VOID<span
                                 class="text-accent-cyan font-light">WARP</span></span>
                     </a>
-                    <p class="text-gray-500 text-sm leading-relaxed max-w-sm">
+                    <p class="text-gray-500 text-sm leading-relaxed max-w-sm" data-i18n="footer.desc">
                         VoidWarp 是一个开源项目，致力于提供最快、最安全的局域网文件传输解决方案。我们相信数据应该由用户自己掌控。
                     </p>
                 </div>
 
                 <div>
-                    <h4 class="text-white font-bold mb-4">链接</h4>
+                    <h4 class="text-white font-bold mb-4" data-i18n="footer.links.title">链接</h4>
                     <ul class="space-y-2 text-sm text-gray-500">
-                        <li><a href="#how-it-works" class="hover:text-accent-cyan transition-colors">工作原理</a></li>
-                        <li><a href="#features" class="hover:text-accent-cyan transition-colors">功能特性</a></li>
-                        <li><a href="#download" class="hover:text-accent-cyan transition-colors">下载应用</a></li>
+                        <li><a href="#how-it-works" class="hover:text-accent-cyan transition-colors"
+                                data-i18n="nav.how">工作原理</a></li>
+                        <li><a href="#features" class="hover:text-accent-cyan transition-colors"
+                                data-i18n="nav.features">功能特性</a></li>
+                        <li><a href="#download" class="hover:text-accent-cyan transition-colors"
+                                data-i18n="nav.download">下载应用</a></li>
                         <li><a href="https://github.com/xustalis/voidwarp"
-                                class="hover:text-accent-cyan transition-colors">源代码</a></li>
+                                class="hover:text-accent-cyan transition-colors" data-i18n="footer.links.source">源代码</a>
+                        </li>
                     </ul>
                 </div>
 
                 <div>
-                    <h4 class="text-white font-bold mb-4">联系方式</h4>
+                    <h4 class="text-white font-bold mb-4" data-i18n="footer.contact.title">联系方式</h4>
                     <ul class="space-y-2 text-sm text-gray-500">
                         <li><a href="mailto:fing2024@outlook.com"
                                 class="hover:text-accent-cyan transition-colors flex items-center gap-2">
@@ -931,17 +958,18 @@
                             </a></li>
                         <li><a href="https://github.com/xustalis/voidwarp/issues" target="_blank"
                                 class="hover:text-accent-cyan transition-colors flex items-center gap-2">
-                                <i class="fa-brands fa-github"></i> 提交问题
+                                <i class="fa-brands fa-github"></i> <span data-i18n="footer.contact.issue">提交问题</span>
                             </a></li>
                         <li><a href="https://github.com/xustalis/voidwarp/blob/main/LICENSE" target="_blank"
-                                class="hover:text-white transition-colors">开源协议 (GPLv3)</a></li>
+                                class="hover:text-white transition-colors" data-i18n="footer.contact.license">开源协议
+                                (GPLv3)</a></li>
                     </ul>
                 </div>
             </div>
 
             <div
                 class="border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-600">
-                <div>&copy; 2024-2026 VoidWarp Project. Licensed under GPLv3.</div>
+                <div data-i18n="footer.copyright">&copy; 2024-2026 VoidWarp Project. Licensed under GPLv3.</div>
                 <div class="flex gap-4">
                     <a href="https://github.com/xustalis/voidwarp" target="_blank"
                         class="hover:text-white transition-colors"><i class="fa-brands fa-github text-lg"></i></a>
@@ -1143,29 +1171,55 @@
                 'nav.roadmap': '路线图',
                 'nav.faq': 'FAQ',
                 'nav.download': '下载',
+
                 'hero.title1': '安全',
                 'hero.title2': '连接',
                 'hero.desc': '基于 <span class="text-accent-rust font-medium">Rust</span> 的下一代局域网传输协议。在 <span class="text-white">Android</span> 与 <span class="text-white">Windows</span> 之间构建加密的高速虫洞，彻底告别数据线，享受无缝互联体验。',
                 'hero.cta': '开始传输',
+
                 'how.title': '工作原理',
                 'how.subtitle': '简单三步，实现设备间的无缝连接',
                 'how.step1.title': '1. 自动发现',
-                'how.step1.desc': '利用 UDP 广播技术，无需手动输入 IP 地址，设备打开应用即可在局域网内相互"看见"。',
+                'how.step1.desc': '利用 UDP 广播技术，无需手动输入 IP 地址，设备打开应用即可在局域网内相互“看见”。',
                 'how.step2.title': '2. 安全握手',
                 'how.step2.desc': '设备间交换公钥进行身份验证，建立加密通道。所有请求需经用户确认，杜绝恶意连接。',
                 'how.step3.title': '3. 极速传输',
                 'how.step3.desc': '建立 TCP 直连通道，充分利用局域网带宽（可达 100MB/s+），实现大文件秒传。',
+
+                'usecases.title': '应用场景',
+                'usecases.case1.title': '无网环境传输',
+                'usecases.case1.desc': '在飞机、地下室或网络受限的办公环境中，依然可以进行稳定的文件交换。',
+                'usecases.case2.title': '媒体资产迁移',
+                'usecases.case2.desc': '摄影师、视频创作者可以快速将手机拍摄的 4K 视频原片传输到电脑进行剪辑。',
+                'usecases.case3.title': '隐私数据保护',
+                'usecases.case3.desc': '传输过程不经过第三方服务器，敏感文档、私人照片完全掌握在自己手中。',
+                'usecases.case4.title': '跨生态协作',
+                'usecases.case4.desc': '打破 Android 与 Windows 之间的壁垒，无需微信文件助手，传文件从未如此简单。',
+
                 'features.title': '核心特性',
                 'features.rust.title': 'Rust 极速核心',
                 'features.rust.desc': '摒弃沉重的虚拟机，利用 Rust 的零成本抽象特性，在局域网内榨干带宽极限，GB 级文件瞬时传输。',
                 'features.security.title': '军工级加密',
-                'features.security.desc': '内置 crypto.rs 模块。每一次握手，每一字节的数据，都经过端到端高强度加密。无中间人，无云端窥探。',
+                'features.security.desc': '内置 <code>crypto.rs</code> 模块。每一次握手，每一字节的数据，都经过端到端高强度加密。无中间人，无云端窥探。',
                 'features.discovery.title': '无感自动发现',
                 'features.discovery.desc': '基于 UDP 广播与多播技术。打开应用，设备即刻显现。无需扫码，无需手动输入 IP，就像魔法一样。',
+
+                'tech.title': 'Rust + FFI <br><span class="text-gray-500">底层统一，体验原生</span>',
+                'tech.desc': '我们拒绝使用 Electron 或 Web 技术构建核心。95% 的业务逻辑（网络、加密、文件 I/O）下沉在高性能的 Rust 层，通过 FFI 暴露给上层 UI。',
+                'tech.p1.title': 'Unified Core (统一核心)',
+                'tech.p1.desc': '一份 Rust 代码编译为 .so (Android) 和 .dll (Windows)，保证双端行为绝对一致，减少维护成本。',
+                'tech.p2.title': 'Native UI (原生界面)',
+                'tech.p2.desc': '使用 Kotlin (Jetpack Compose) 和 C# (WPF) 构建 UI，提供极致的启动速度和完美的系统集成（如通知、拖拽）。',
+
                 'download.title': '建立你的专属连接',
                 'download.subtitle': '所有功能完全离线可用。不依赖服务器，不消耗流量。你的设备就是中心。',
-                'download.android.features': ['Material You 设计', '后台服务保活', '系统分享集成'],
-                'download.windows.features': ['原生 WPF 性能', '托盘最小化运行', '拖拽发送文件'],
+                'download.android.f1': 'Material You 设计',
+                'download.android.f2': '后台服务保活',
+                'download.android.f3': '系统分享集成',
+                'download.windows.f1': '原生 WPF 性能',
+                'download.windows.f2': '托盘最小化运行',
+                'download.windows.f3': '拖拽发送文件',
+
                 'roadmap.title': '开发路线图',
                 'roadmap.subtitle': 'VoidWarp 的未来计划',
                 'roadmap.v10.title': 'v1.0 (已发布)',
@@ -1174,8 +1228,25 @@
                 'roadmap.v11.desc': '性能优化：流式传输、TCP_NODELAY、增量校验。传输历史记录管理。',
                 'roadmap.v20.title': 'v2.0 (未来)',
                 'roadmap.v20.desc': 'macOS 与 iOS 客户端支持，实现全平台覆盖。剪贴板同步、中继模式跨网段传输。',
+
                 'faq.title': '常见问题',
                 'faq.subtitle': '安装和使用过程中的常见疑问',
+                'faq.q1': '传输速度有多快？',
+                'faq.a1': '速度主要取决于您的路由器性能和网络环境。在 5GHz Wi-Fi 环境下，VoidWarp 通常可以达到 30MB/s - 100MB/s 的速度。由于我们使用 Rust 编写底层并优化了缓冲区，通常比基于 HTTP 的传输工具更快。',
+                'faq.q2': '需要连接互联网吗？',
+                'faq.a2': '完全不需要。VoidWarp 仅在局域网（LAN）内工作。您的数据从一台设备直接流向另一台设备，不经过任何外部服务器。这也意味着即使断网，只要路由器通电，依然可以使用。',
+                'faq.q3': '为什么我的设备互相找不到？',
+                'faq.a3': '请确保两台设备连接到同一个 Wi-Fi 网络。如果在 Windows 上，请检查防火墙设置，确保允许 VoidWarp 进行专用网络通信。在某些公共 Wi-Fi（如学校、酒店）中，AP 隔离功能可能会阻止设备发现。',
+                'faq.q4': '这个项目是开源的吗？',
+                'faq.a4': '是的，VoidWarp 是 100% 开源的。您可以访问我们的 GitHub 仓库查看源代码、提交 Issue 或贡献代码。',
+
+                'footer.desc': 'VoidWarp 是一个开源项目，致力于提供最快、最安全的局域网文件传输解决方案。我们相信数据应该由用户自己掌控。',
+                'footer.links.title': '链接',
+                'footer.links.source': '源代码',
+                'footer.contact.title': '联系方式',
+                'footer.contact.issue': '提交问题',
+                'footer.contact.license': '开源协议 (GPLv3)',
+                'footer.copyright': '&copy; 2024-2026 VoidWarp Project. Licensed under GPLv3.',
             },
             en: {
                 'nav.how': 'How It Works',
@@ -1184,10 +1255,12 @@
                 'nav.roadmap': 'Roadmap',
                 'nav.faq': 'FAQ',
                 'nav.download': 'Download',
+
                 'hero.title1': 'Secure',
                 'hero.title2': 'Connection',
                 'hero.desc': 'Next-generation LAN transfer protocol built with <span class="text-accent-rust font-medium">Rust</span>. Create an encrypted high-speed wormhole between <span class="text-white">Android</span> and <span class="text-white">Windows</span>. Say goodbye to cables.',
                 'hero.cta': 'Start Transfer',
+
                 'how.title': 'How It Works',
                 'how.subtitle': 'Three simple steps to seamless device connection',
                 'how.step1.title': '1. Auto Discovery',
@@ -1196,17 +1269,41 @@
                 'how.step2.desc': 'Devices exchange public keys for authentication and establish encrypted channels. All requests require user confirmation.',
                 'how.step3.title': '3. Blazing Fast Transfer',
                 'how.step3.desc': 'Direct TCP connection maximizes LAN bandwidth (100MB/s+), enabling instant transfer of large files.',
+
+                'usecases.title': 'Use Cases',
+                'usecases.case1.title': 'Offline Transfer',
+                'usecases.case1.desc': 'Transfer files reliably in airplanes, basements, or office environments with restricted internet access.',
+                'usecases.case2.title': 'Media Migration',
+                'usecases.case2.desc': 'Photographers and creators can quickly transfer 4K raw footage from mobile to PC for editing.',
+                'usecases.case3.title': 'Privacy Protection',
+                'usecases.case3.desc': 'No third-party servers involved. Sensitive documents and private photos stay in your control.',
+                'usecases.case4.title': 'Cross-Ecosystem',
+                'usecases.case4.desc': 'Break the wall between Android and Windows. No need for chat apps to send files anymore.',
+
                 'features.title': 'Core Features',
                 'features.rust.title': 'Rust-Powered Speed',
                 'features.rust.desc': 'No heavy VMs. Leverage Rust\'s zero-cost abstractions to push LAN bandwidth to its limits—GB files transfer instantly.',
                 'features.security.title': 'Military-Grade Encryption',
-                'features.security.desc': 'Built-in crypto.rs module. Every handshake, every byte is end-to-end encrypted. No middlemen, no cloud snooping.',
+                'features.security.desc': 'Built-in <code>crypto.rs</code> module. Every handshake, every byte is end-to-end encrypted. No middlemen, no cloud snooping.',
                 'features.discovery.title': 'Seamless Auto-Discovery',
                 'features.discovery.desc': 'UDP broadcast & multicast technology. Open the app and devices appear instantly. No QR codes, no manual IP—like magic.',
+
+                'tech.title': 'Rust + FFI <br><span class="text-gray-500">Unified Core, Native Experience</span>',
+                'tech.desc': 'We refuse to use Electron or Web technologies for the core. 95% of business logic (Network, Crypto, I/O) sinks into the high-performance Rust layer, exposed to UI via FFI.',
+                'tech.p1.title': 'Unified Core',
+                'tech.p1.desc': 'One Rust codebase compiled to .so (Android) and .dll (Windows), ensuring identical behavior and reducing maintenance costs.',
+                'tech.p2.title': 'Native UI',
+                'tech.p2.desc': 'UI built with Kotlin (Jetpack Compose) and C# (WPF), providing instant startup speed and perfect system integration (Notifications, Drag & Drop).',
+
                 'download.title': 'Build Your Private Connection',
                 'download.subtitle': 'All features work completely offline. No servers, no data usage. Your device is the center.',
-                'download.android.features': ['Material You Design', 'Background Service', 'System Share Integration'],
-                'download.windows.features': ['Native WPF Performance', 'System Tray Mode', 'Drag & Drop Files'],
+                'download.android.f1': 'Material You Design',
+                'download.android.f2': 'Background Service',
+                'download.android.f3': 'System Share Integration',
+                'download.windows.f1': 'Native WPF Performance',
+                'download.windows.f2': 'System Tray Mode',
+                'download.windows.f3': 'Drag & Drop Files',
+
                 'roadmap.title': 'Development Roadmap',
                 'roadmap.subtitle': 'The future of VoidWarp',
                 'roadmap.v10.title': 'v1.0 (Released)',
@@ -1215,8 +1312,25 @@
                 'roadmap.v11.desc': 'Performance: Streaming mode, TCP_NODELAY, incremental hashing. Transfer history management.',
                 'roadmap.v20.title': 'v2.0 (Future)',
                 'roadmap.v20.desc': 'macOS & iOS clients for full platform coverage. Clipboard sync, relay mode for cross-subnet transfer.',
+
                 'faq.title': 'FAQ',
                 'faq.subtitle': 'Common questions about installation and usage',
+                'faq.q1': 'How fast is the transfer?',
+                'faq.a1': 'Speed depends on your router and network environment. on 5GHz Wi-Fi, VoidWarp typically reaches 30MB/s - 100MB/s. Built with Rust and optimized buffers, it\'s usually faster than HTTP-based tools.',
+                'faq.q2': 'Is internet required?',
+                'faq.a2': 'Absolutely not. VoidWarp works strictly within LAN. Your data flows directly from device to device without touching external servers. It works as long as your router has power, even without internet.',
+                'faq.q3': 'Why can\'t devices find each other?',
+                'faq.a3': 'Ensure both devices are on the SAME Wi-Fi network. On Windows, check Firewall settings to allow VoidWarp on Private networks. Some public Wi-Fi (schools, hotels) use AP Isolation which blocks discovery.',
+                'faq.q4': 'Is this open source?',
+                'faq.a4': 'Yes, VoidWarp is 100% open source. You can visit our GitHub repository to view source code, submit issues, or contribute.',
+
+                'footer.desc': 'VoidWarp is an open-source project dedicated to providing the fastest, most secure LAN file transfer solution. We believe data should be controlled by users.',
+                'footer.links.title': 'Links',
+                'footer.links.source': 'Source Code',
+                'footer.contact.title': 'Contact',
+                'footer.contact.issue': 'Submit Issue',
+                'footer.contact.license': 'License (GPLv3)',
+                'footer.copyright': '&copy; 2024-2026 VoidWarp Project. Licensed under GPLv3.',
             }
         };
 
