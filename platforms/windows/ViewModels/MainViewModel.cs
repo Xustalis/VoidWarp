@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -824,7 +824,7 @@ namespace VoidWarp.Windows.ViewModels
 
                     MessageBox.Show(
                         $"传输完成！\n\n成功: {successCount}\n失败: {filesToSend.Count - successCount}",
-                        "虚空传送",
+                        "voidwarp",
                         MessageBoxButton.OK,
                         successCount == filesToSend.Count ? MessageBoxImage.Information : MessageBoxImage.Warning);
                     
@@ -1097,6 +1097,7 @@ namespace VoidWarp.Windows.ViewModels
                     FileSize = e.FormattedSize,
                     SenderName = e.SenderName,
                     ReceivedTime = DateTime.Now,
+                    IsFolder = e.IsFolder,
                     Status = TransferStatus.InProgress
                 };
             }
@@ -1327,7 +1328,7 @@ namespace VoidWarp.Windows.ViewModels
         {
             if (IsTransferring) return;
             
-            var result = MessageBox.Show("确定要清空所有传输记录吗？\n(这不会删除实际文件)", "虚空传送", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            var result = MessageBox.Show("确定要清空所有传输记录吗？\n(这不会删除实际文件)", "voidwarp", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (result == MessageBoxResult.Yes)
             {
                 InvokeOnUI(() =>

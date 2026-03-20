@@ -557,8 +557,6 @@ namespace VoidWarp.Windows.Native
             public ulong FileSize;
             [MarshalAs(UnmanagedType.I1)]
             public bool IsValid;
-            [MarshalAs(UnmanagedType.I1)]
-            public bool IsFolder;
         }
 
         #endregion

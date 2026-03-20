@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:VoidWarp.Windows"
         mc:Ignorable="d"
-        Title="虚空传送" 
+        Title="voidwarp" 
         Height="720" Width="1080"
         MinHeight="600" MinWidth="900"
         WindowStartupLocation="CenterScreen"
@@ -206,7 +206,7 @@
                 
                 <!-- Title & Downloads Button -->
                 <Grid Margin="25,45,25,15">
-                    <TextBlock Text="虚空传送" Foreground="{StaticResource PrimaryBrush}" FontSize="32" FontWeight="ExtraBold"/>
+                    <TextBlock Text="voidwarp" Foreground="{StaticResource PrimaryBrush}" FontSize="32" FontWeight="ExtraBold"/>
                     <Button Content="已接收文件" HorizontalAlignment="Right" VerticalAlignment="Center" 
                             Style="{StaticResource SecondaryButtonStyle}" Padding="10,5" FontSize="11"
                             Command="{Binding OpenDownloadsCommand}"/>

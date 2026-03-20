@@ -555,7 +555,6 @@ pub struct FfiPendingTransfer {
     pub file_name: *mut c_char,
     pub file_size: u64,
     pub is_valid: bool,
-    pub is_folder: bool,
 }
 
 /// Create a file receiver server
@@ -628,7 +627,6 @@ pub extern "C" fn voidwarp_receiver_get_pending(
         file_name: ptr::null_mut(),
         file_size: 0,
         is_valid: false,
-        is_folder: false,
     };
 
     if receiver.is_null() {
@@ -648,7 +646,6 @@ pub extern "C" fn voidwarp_receiver_get_pending(
                 .unwrap_or(ptr::null_mut()),
             file_size: transfer.file_size,
             is_valid: true,
-            is_folder: transfer.transfer_type == crate::protocol::TransferType::Folder,
         },
         None => empty,
     }
@@ -669,44 +666,17 @@ pub extern "C" fn voidwarp_receiver_accept(
     receiver: *mut FfiFileReceiver,
     save_path: *const c_char,
 ) -> i32 {
-    if receiver.is_null() {
-        tracing::error!("voidwarp_receiver_accept: Receiver is null");
-        return -1;
-    }
-    if save_path.is_null() {
-        tracing::error!("voidwarp_receiver_accept: Save path is null");
+    if receiver.is_null() || save_path.is_null() {
         return -1;
     }
 
     let path_str = unsafe { CStr::from_ptr(save_path) }.to_string_lossy();
-    tracing::info!(
-        "FFI: voidwarp_receiver_accept called with path: '{}'",
-        path_str
-    );
-
     let path = PathBuf::from(path_str.as_ref());
 
-    // Check receiver state before calling
-    let state = unsafe { (*receiver).server.state() };
-    tracing::info!("FFI: Current receiver state: {:?}", state);
-
     match unsafe { (*receiver).server.accept_transfer(&path) } {
-        Ok(_) => {
-            tracing::info!("FFI: accept_transfer returned success");
-            0
-        }
+        Ok(_) => 0,
         Err(e) => {
-            tracing::error!("FFI: Accept transfer failed: {}", e);
-            tracing::error!("FFI: Error kind: {:?}", e.kind());
-            // Check if file exists to debug permissions
-            if path.exists() {
-                tracing::warn!("FFI: Target file already exists at path");
-            } else if let Some(parent) = path.parent() {
-                tracing::info!("FFI: Parent dir exists: {}", parent.exists());
-                if !parent.exists() {
-                    tracing::warn!("FFI: Parent directory does not exist: {:?}", parent);
-                }
-            }
+            tracing::error!("Accept transfer failed: {}", e);
             -1
         }
     }
@@ -795,15 +765,6 @@ pub extern "C" fn voidwarp_tcp_sender_set_chunk_size(sender: *mut FfiTcpSender, 
             (*sender).sender.set_chunk_size(size);
         }
     }
-}
-
-/// Check if sender is transferring a folder
-#[no_mangle]
-pub extern "C" fn voidwarp_tcp_sender_is_folder(sender: *const FfiTcpSender) -> bool {
-    if sender.is_null() {
-        return false;
-    }
-    unsafe { (*sender).sender.transfer_type == crate::protocol::TransferType::Folder }
 }
 
 /// Start TCP transfer to the target address
@@ -951,7 +912,10 @@ pub extern "C" fn voidwarp_transport_ping(ip_address: *const c_char, port: u16) 
 
     // Just try to connect - if we can connect, the port is open and reachable.
     // We don't need a full protocol handshake for a basic liveness check.
-    std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(2)).is_ok()
+    match std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(2)) {
+        Ok(_) => true,
+        Err(_) => false,
+    }
 }
 
 #[cfg(test)]
