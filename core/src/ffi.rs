@@ -912,10 +912,7 @@ pub extern "C" fn voidwarp_transport_ping(ip_address: *const c_char, port: u16) 
 
     // Just try to connect - if we can connect, the port is open and reachable.
     // We don't need a full protocol handshake for a basic liveness check.
-    match std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(2)) {
-        Ok(_) => true,
-        Err(_) => false,
-    }
+    std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(2)).is_ok()
 }
 
 #[cfg(test)]
