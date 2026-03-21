@@ -827,7 +827,7 @@ namespace VoidWarp.Windows.Core
                         
                         Log($"Incoming transfer: {fileName} from {senderName}", LogLevel.Info);
                         OnPendingTransfer?.Invoke(this, new PendingTransferEventArgs(
-                            fileName, (long)pending.FileSize, senderName, senderAddr, false));
+                            fileName, (long)pending.FileSize, senderName, senderAddr, pending.IsFolder));
                         
                         NativeBindings.voidwarp_free_pending_transfer(pending);
                         

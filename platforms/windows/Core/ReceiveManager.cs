@@ -26,6 +26,7 @@ namespace VoidWarp.Windows.Core
         public string SenderAddress { get; set; } = string.Empty;
         public string FileName { get; set; } = string.Empty;
         public ulong FileSize { get; set; }
+        public bool IsFolder { get; set; }
 
         public string FormattedSize => FileSize switch
         {
@@ -271,7 +272,8 @@ namespace VoidWarp.Windows.Core
                 SenderName = Marshal.PtrToStringUTF8(pending.SenderName) ?? "Unknown",
                 SenderAddress = Marshal.PtrToStringUTF8(pending.SenderAddr) ?? "",
                 FileName = Marshal.PtrToStringUTF8(pending.FileName) ?? "unknown",
-                FileSize = pending.FileSize
+                FileSize = pending.FileSize,
+                IsFolder = pending.IsFolder
             };
 
             NativeBindings.voidwarp_free_pending_transfer(pending);

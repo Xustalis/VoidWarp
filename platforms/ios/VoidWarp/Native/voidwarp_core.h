@@ -27,8 +27,8 @@ typedef struct {
     const char* sender_addr;
     const char* file_name;
     uint64_t file_size;
-    bool is_valid;
     bool is_folder;
+    bool is_valid;
 } FfiPendingTransfer;
 
 // Core Lifecycle

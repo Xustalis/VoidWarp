@@ -556,6 +556,8 @@ namespace VoidWarp.Windows.Native
             public IntPtr FileName;
             public ulong FileSize;
             [MarshalAs(UnmanagedType.I1)]
+            public bool IsFolder;
+            [MarshalAs(UnmanagedType.I1)]
             public bool IsValid;
         }
 

@@ -1,7 +1,6 @@
 #![cfg(target_os = "android")]
 #![allow(non_snake_case)]
 
-use crate::discovery::{DiscoveredPeer, DiscoveryManager};
 use crate::ffi;
 use jni::objects::{JClass, JObject, JString, JValue};
 use jni::sys::{jboolean, jint, jlong, jobject, jobjectArray, jstring};
@@ -509,7 +508,7 @@ pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpTcpS
 
 #[no_mangle]
 pub unsafe extern "C" fn Java_com_voidwarp_android_native_NativeLib_voidwarpTcpSenderGetChecksum(
-    mut env: JNIEnv,
+    env: JNIEnv,
     _class: JClass,
     sender: jlong,
 ) -> jstring {

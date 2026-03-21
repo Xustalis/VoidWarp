@@ -554,6 +554,7 @@ pub struct FfiPendingTransfer {
     pub sender_addr: *mut c_char,
     pub file_name: *mut c_char,
     pub file_size: u64,
+    pub is_folder: bool,
     pub is_valid: bool,
 }
 
@@ -626,6 +627,7 @@ pub extern "C" fn voidwarp_receiver_get_pending(
         sender_addr: ptr::null_mut(),
         file_name: ptr::null_mut(),
         file_size: 0,
+        is_folder: false,
         is_valid: false,
     };
 
@@ -645,6 +647,7 @@ pub extern "C" fn voidwarp_receiver_get_pending(
                 .map(|s| s.into_raw())
                 .unwrap_or(ptr::null_mut()),
             file_size: transfer.file_size,
+            is_folder: transfer.transfer_type == crate::protocol::TransferType::Folder,
             is_valid: true,
         },
         None => empty,
